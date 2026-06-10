@@ -25,23 +25,16 @@ function PodCard({ pod }) {
     <div style={styles.card}>
       <div style={styles.cardHeader}>
         <span style={styles.podName}>{pod.name}</span>
-        <span style={{
-          ...styles.badge,
-          background: pod.status === "Running" ? "#22c55e" : "#ef4444"
-        }}>
+        <span style={{...styles.badge, background: pod.status === "Running" ? "#22c55e" : "#ef4444"}}>
           {pod.status}
         </span>
       </div>
       <div style={styles.cardBody}>
-        <span style={styles.meta}>Namespace: {pod.namespace}</span>
+        <span style={styles.meta}>NS: {pod.namespace}</span>
         <span style={styles.meta}>Restarts: {pod.restarts}</span>
       </div>
       {pod.restarts > 3 && (
-        <button
-          style={styles.btn}
-          onClick={handleTroubleshoot}
-          disabled={loading}
-        >
+        <button style={styles.btn} onClick={handleTroubleshoot} disabled={loading}>
           {loading ? "Analyzing..." : "🤖 AI Troubleshoot"}
         </button>
       )}
@@ -57,13 +50,8 @@ function PodCard({ pod }) {
 
 function ManifestGenerator() {
   const [form, setForm] = useState({
-    workload_type: "Deployment",
-    app_name: "",
-    image: "",
-    replicas: 1,
-    cpu_limit: "100m",
-    memory_limit: "128Mi",
-    port: 80
+    workload_type: "Deployment", app_name: "", image: "",
+    replicas: 1, cpu_limit: "100m", memory_limit: "128Mi", port: 80
   })
   const [manifest, setManifest] = useState(null)
   const [valid, setValid] = useState(null)
@@ -85,11 +73,8 @@ function ManifestGenerator() {
     <div style={styles.section}>
       <h2 style={styles.sectionTitle}>🤖 AI Manifest Generator</h2>
       <div style={styles.form}>
-        <select
-          style={styles.input}
-          value={form.workload_type}
-          onChange={e => setForm({...form, workload_type: e.target.value})}
-        >
+        <select style={styles.input} value={form.workload_type}
+          onChange={e => setForm({...form, workload_type: e.target.value})}>
           <option>Deployment</option>
           <option>StatefulSet</option>
           <option>Job</option>
@@ -97,7 +82,7 @@ function ManifestGenerator() {
         </select>
         <input style={styles.input} placeholder="App name" value={form.app_name}
           onChange={e => setForm({...form, app_name: e.target.value})} />
-        <input style={styles.input} placeholder="Container image (e.g. nginx:latest)" value={form.image}
+        <input style={styles.input} placeholder="Container image" value={form.image}
           onChange={e => setForm({...form, image: e.target.value})} />
         <input style={styles.input} placeholder="Replicas" type="number" value={form.replicas}
           onChange={e => setForm({...form, replicas: parseInt(e.target.value)})} />
@@ -120,6 +105,71 @@ function ManifestGenerator() {
             </span>
           </div>
           <pre style={styles.code}>{manifest}</pre>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PredictiveAnalysis() {
+  const [predictions, setPredictions] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [lastChecked, setLastChecked] = useState(null)
+
+  const fetchPredictions = async () => {
+    setLoading(true)
+    try {
+      const res = await axios.get(`${API}/api/predict-failures`)
+      setPredictions(res.data)
+      setLastChecked(new Date().toLocaleTimeString())
+    } catch (e) {
+      setPredictions({ status: "error", predictions: "Could not fetch predictions" })
+    }
+    setLoading(false)
+  }
+
+  return (
+    <div style={styles.section}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <h2 style={styles.sectionTitle}>🔮 Predictive Failure Detection</h2>
+        <button style={styles.btn} onClick={fetchPredictions} disabled={loading}>
+          {loading ? "Analyzing..." : "🔍 Analyze Cluster"}
+        </button>
+      </div>
+
+      {lastChecked && (
+        <p style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>Last checked: {lastChecked}</p>
+      )}
+
+      {!predictions && !loading && (
+        <div style={{ textAlign: "center", padding: 40, color: "#64748b" }}>
+          <p style={{ fontSize: 32, marginBottom: 8 }}>🔮</p>
+          <p>Click "Analyze Cluster" to get AI predictions about potential failures</p>
+        </div>
+      )}
+
+      {predictions && predictions.metrics_collected && (
+        <div style={styles.metricsRow}>
+          <div style={styles.metricChip}>
+            📊 CPU pods tracked: {predictions.metrics_collected.cpu_pods}
+          </div>
+          <div style={styles.metricChip}>
+            💾 Memory pods tracked: {predictions.metrics_collected.memory_pods}
+          </div>
+          <div style={styles.metricChip}>
+            🔄 Pods with restarts: {predictions.metrics_collected.restart_counts}
+          </div>
+        </div>
+      )}
+
+      {predictions && predictions.predictions && (
+        <div style={styles.predictionBox}>
+          <strong style={{ color: "#38bdf8", display: "block", marginBottom: 12 }}>
+            🤖 AI Analysis & Predictions:
+          </strong>
+          <p style={{ whiteSpace: "pre-wrap", fontSize: 13, lineHeight: 1.7, color: "#cbd5e1" }}>
+            {predictions.predictions}
+          </p>
         </div>
       )}
     </div>
@@ -167,6 +217,8 @@ export default function App() {
           onClick={() => setTab("pods")}>Cluster Pods</button>
         <button style={{ ...styles.tab, ...(tab === "generate" ? styles.activeTab : {}) }}
           onClick={() => setTab("generate")}>AI Generator</button>
+        <button style={{ ...styles.tab, ...(tab === "predict" ? styles.activeTab : {}) }}
+          onClick={() => setTab("predict")}>🔮 Predictions</button>
       </div>
 
       {tab === "pods" && (
@@ -181,6 +233,7 @@ export default function App() {
       )}
 
       {tab === "generate" && <ManifestGenerator />}
+      {tab === "predict" && <PredictiveAnalysis />}
     </div>
   )
 }
@@ -211,5 +264,8 @@ const styles = {
   form: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 },
   input: { padding: "8px 12px", borderRadius: 6, border: "1px solid #334155", background: "#0f172a", color: "#f1f5f9", fontSize: 13 },
   manifestBox: { background: "#0f172a", borderRadius: 8, padding: 16, border: "1px solid #334155" },
-  code: { fontSize: 12, color: "#94a3b8", overflow: "auto", maxHeight: 400, margin: 0 }
+  code: { fontSize: 12, color: "#94a3b8", overflow: "auto", maxHeight: 400, margin: 0 },
+  predictionBox: { background: "#0f172a", borderRadius: 8, padding: 16, border: "1px solid #334155", marginTop: 16 },
+  metricsRow: { display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" },
+  metricChip: { background: "#0f172a", border: "1px solid #334155", borderRadius: 8, padding: "6px 12px", fontSize: 12, color: "#94a3b8" }
 }

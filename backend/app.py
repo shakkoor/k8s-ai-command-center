@@ -67,6 +67,12 @@ def troubleshoot_endpoint():
         'analysis': analysis
     })
 
+@app.route('/api/predict-failures', methods=['GET'])
+def predict_failures_endpoint():
+    from predictor import get_predictions
+    result = get_predictions()
+    return jsonify(result)
+
 if __name__ == '__main__':
     app.run(
         host='0.0.0.0',
