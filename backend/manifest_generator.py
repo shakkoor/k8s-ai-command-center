@@ -32,7 +32,7 @@ Output ONLY valid YAML. No explanations. No markdown. No backticks.
         headers={'Authorization': f'Bearer {os.getenv("OPENROUTER_API_KEY")}'},
         json={
             'model': 'google/gemini-2.5-flash',
-            'max_tokens': 1000,
+            'max_tokens': 1500,
             'messages': [{'role': 'user', 'content': prompt}]
         }
     )
@@ -46,11 +46,15 @@ Output ONLY valid YAML. No explanations. No markdown. No backticks.
     return manifest
 
 def validate_manifest(yaml_content):
+    # Handle multi-document YAML (separated by ---)
     try:
-        yaml.safe_load(yaml_content)
+        docs = list(yaml.safe_load_all(yaml_content))
+        if not docs:
+            return False, "Empty manifest"
     except yaml.YAMLError as e:
         return False, f"Invalid YAML syntax: {e}"
 
+    # Validate each document with kubectl
     with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
         f.write(yaml_content)
         tmp_path = f.name
@@ -65,5 +69,5 @@ def validate_manifest(yaml_content):
     if result.returncode != 0:
         return False, f"Kubernetes validation failed: {result.stderr}"
 
-    return True, "Valid manifest"
+    return True, f"Valid — {len(docs)} resource(s) generated"
 

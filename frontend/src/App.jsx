@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import axios from "axios"
 
-const API = "http://localhost:5000"
+const API = "http://172.27.46.159:5000"
 
 function PodCard({ pod }) {
   const [troubleshoot, setTroubleshoot] = useState(null)
