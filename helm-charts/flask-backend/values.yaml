@@ -1,13 +1,13 @@
 replicaCount: 1
 
 image:
-  repository: python
-  tag: "3.11"
+  repository: nginx
+  tag: "alpine"
   pullPolicy: IfNotPresent
 
 service:
   type: ClusterIP
-  port: 5000
+  port: 80
 
 resources:
   limits:
@@ -16,12 +16,6 @@ resources:
   requests:
     cpu: 100m
     memory: 128Mi
-
-env:
-  - name: FLASK_ENV
-    value: "production"
-  - name: FLASK_PORT
-    value: "5000"
 
 serviceAccount:
   create: false
@@ -41,10 +35,8 @@ nodeSelector: {}
 tolerations: []
 affinity: {}
 livenessProbe:
-  httpGet:
-    path: /health
-    port: 5000
+  tcpSocket:
+    port: 80
 readinessProbe:
-  httpGet:
-    path: /health
-    port: 5000
+  tcpSocket:
+    port: 80
