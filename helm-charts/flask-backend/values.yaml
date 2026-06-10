@@ -22,3 +22,7 @@ env:
     value: "production"
   - name: FLASK_PORT
     value: "5000"
+
+serviceAccount:
+  create: false
+  name: ""
