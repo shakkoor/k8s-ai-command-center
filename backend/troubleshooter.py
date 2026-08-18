@@ -2,14 +2,25 @@ import os
 from groq import Groq
 
 def analyze_pod_issue(pod_name, namespace, logs, metrics, events):
-
     client = Groq(api_key=os.getenv('GROQ_API_KEY'))
+
+    # Detect failure type for better AI prompt
+    failure_type = "Unknown"
+    if "ImagePullBackOff" in events or "ErrImagePull" in events:
+        failure_type = "ImagePullBackOff"
+    elif "OOMKilled" in logs or "OOMKilled" in events:
+        failure_type = "OOMKilled"
+    elif "CrashLoopBackOff" in events:
+        failure_type = "CrashLoopBackOff"
+    elif "Pending" in events or "Unschedulable" in events:
+        failure_type = "Pending/Unschedulable"
 
     prompt = f"""
 You are a Kubernetes SRE expert. Analyze this pod issue and explain in plain English.
 
 Pod: {pod_name}
 Namespace: {namespace}
+Detected Failure Type: {failure_type}
 
 Recent Logs:
 {logs}
@@ -26,7 +37,12 @@ Provide:
 3. Step-by-step fix (exact kubectl commands)
 4. Prevention tip (how to avoid this next time)
 
-Be specific, actionable, and use simple language a junior engineer can follow.
+For ImagePullBackOff: explain the image doesn't exist or registry is unreachable, show how to fix the image name.
+For OOMKilled: explain memory limits were exceeded, show how to increase limits.
+For CrashLoopBackOff: explain the app keeps crashing, show how to check logs.
+For Pending: explain scheduling failed, show how to check node resources.
+
+Be specific, actionable, and use simple language.
 """
 
     response = client.chat.completions.create(
@@ -44,10 +60,7 @@ def get_pod_logs(pod_name, namespace):
     v1 = client.CoreV1Api()
     try:
         logs = v1.read_namespaced_pod_log(
-            name=pod_name,
-            namespace=namespace,
-            tail_lines=50
-        )
+            name=pod_name, namespace=namespace, tail_lines=50)
         return logs
     except Exception as e:
         return f"Could not fetch logs: {e}"
