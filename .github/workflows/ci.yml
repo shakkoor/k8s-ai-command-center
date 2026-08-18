@@ -30,11 +30,13 @@ jobs:
         sudo install kubectl /usr/local/bin/kubectl
 
     - name: Run tests with coverage
+      id: tests
       env:
         GROQ_API_KEY: test-key-for-ci
         OPENROUTER_API_KEY: test-key-for-ci
       run: |
-        python -m pytest tests/test_backend.py -v --cov=backend --cov-report=term-missing
+        python -m pytest tests/test_backend.py -v --cov=backend --cov-report=term-missing --cov-report=json 2>&1 | tee test_output.txt
+        echo "exit_code=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
 
     - name: Validate Helm charts
       run: |
@@ -42,3 +44,47 @@ jobs:
         helm lint helm-charts/nginx-app
         helm lint helm-charts/flask-backend
         helm lint helm-charts/react-frontend
+
+    - name: Post PR comment with results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const output = fs.readFileSync('test_output.txt', 'utf8');
+          const lines = output.split('\n');
+          const summary = lines.find(l => l.includes('passed') || l.includes('failed')) || 'Tests completed';
+          const coverage = lines.find(l => l.includes('TOTAL')) || '';
+          
+          const body = `## 🤖 CI Results for K8sAI Command Center
+          
+          ### Test Results
+          \`\`\`
+          ${summary}
+          ${coverage}
+          \`\`\`
+          
+          ### Helm Chart Validation
+          ✅ nginx-app, flask-backend, react-frontend — all valid
+          
+          ### Full Output
+          <details>
+          <summary>Click to expand</summary>
+          
+          \`\`\`
+          ${output.slice(0, 3000)}
+          \`\`\`
+          </details>`;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: body
+          });
+
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: coverage.json
