@@ -28,25 +28,42 @@ def test_health_message(client):
     assert 'K8sAI' in data['message']
 
 def test_pods_endpoint_exists(client):
-    response = client.get('/api/cluster/pods')
-    assert response.status_code in [200, 500]
+    with patch('kubernetes.config.load_kube_config'), \
+         patch('kubernetes.client.CoreV1Api') as mock_api:
+        mock_pod = MagicMock()
+        mock_pod.metadata.name = 'test-pod'
+        mock_pod.metadata.namespace = 'default'
+        mock_pod.status.phase = 'Running'
+        mock_pod.status.container_statuses = [MagicMock(restart_count=0)]
+        mock_api.return_value.list_pod_for_all_namespaces.return_value.items = [mock_pod]
+        response = client.get('/api/cluster/pods')
+        assert response.status_code == 200
+        data = response.get_json()
+        assert 'pods' in data
 
 def test_manifest_endpoint_returns_fields(client):
-    response = client.post('/api/generate-manifest',
-        json={
-            'workload_type': 'Deployment',
-            'app_name': 'test-app',
-            'image': 'nginx:latest',
-            'replicas': 1,
-            'cpu_limit': '100m',
-            'memory_limit': '128Mi',
-            'port': 80
-        })
-    assert response.status_code == 200
-    data = response.get_json()
-    assert 'manifest' in data
-    assert 'valid' in data
-    assert 'message' in data
+    with patch('requests.post') as mock_post:
+        mock_post.return_value.json.return_value = {
+            'choices': [{'message': {'content': 'apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: test-app'}}]
+        }
+        with patch('subprocess.run') as mock_run:
+            mock_run.return_value.returncode = 0
+            mock_run.return_value.stderr = ''
+            response = client.post('/api/generate-manifest',
+                json={
+                    'workload_type': 'Deployment',
+                    'app_name': 'test-app',
+                    'image': 'nginx:latest',
+                    'replicas': 1,
+                    'cpu_limit': '100m',
+                    'memory_limit': '128Mi',
+                    'port': 80
+                })
+            assert response.status_code == 200
+            data = response.get_json()
+            assert 'manifest' in data
+            assert 'valid' in data
+            assert 'message' in data
 
 def test_troubleshoot_endpoint_exists(client):
     with patch('troubleshooter.analyze_pod_issue') as mock_analyze, \
@@ -63,8 +80,11 @@ def test_troubleshoot_endpoint_exists(client):
         assert 'pod' in data
 
 def test_validate_valid_yaml():
-    from manifest_generator import validate_manifest
-    valid_yaml = """
+    with patch('subprocess.run') as mock_run:
+        mock_run.return_value.returncode = 0
+        mock_run.return_value.stderr = ''
+        from manifest_generator import validate_manifest
+        valid_yaml = """
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -83,8 +103,8 @@ spec:
       - name: test-app
         image: nginx:latest
 """
-    valid, message = validate_manifest(valid_yaml)
-    assert valid == True
+        valid, message = validate_manifest(valid_yaml)
+        assert valid == True
 
 def test_validate_invalid_yaml():
     from manifest_generator import validate_manifest
@@ -93,21 +113,28 @@ def test_validate_invalid_yaml():
     assert valid == False
 
 def test_manifest_response_fields(client):
-    response = client.post('/api/generate-manifest',
-        json={
-            'workload_type': 'Deployment',
-            'app_name': 'test-app',
-            'image': 'nginx:latest',
-            'replicas': 1,
-            'cpu_limit': '100m',
-            'memory_limit': '128Mi',
-            'port': 80
-        })
-    if response.status_code == 200:
-        data = response.get_json()
-        assert 'manifest' in data
-        assert 'valid' in data
-        assert 'message' in data
+    with patch('requests.post') as mock_post:
+        mock_post.return_value.json.return_value = {
+            'choices': [{'message': {'content': 'apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: test'}}]
+        }
+        with patch('subprocess.run') as mock_run:
+            mock_run.return_value.returncode = 0
+            mock_run.return_value.stderr = ''
+            response = client.post('/api/generate-manifest',
+                json={
+                    'workload_type': 'Deployment',
+                    'app_name': 'test-app',
+                    'image': 'nginx:latest',
+                    'replicas': 1,
+                    'cpu_limit': '100m',
+                    'memory_limit': '128Mi',
+                    'port': 80
+                })
+            if response.status_code == 200:
+                data = response.get_json()
+                assert 'manifest' in data
+                assert 'valid' in data
+                assert 'message' in data
 
 def test_health_post_not_allowed(client):
     response = client.post('/health')
@@ -121,7 +148,7 @@ def test_predict_failures_endpoint(client):
     with patch('predictor.get_predictions') as mock_predict:
         mock_predict.return_value = {
             'status': 'ok',
-            'predictions': 'All pods healthy. No immediate risk detected.',
+            'predictions': 'All pods healthy.',
             'metrics_collected': {'cpu_pods': 5, 'memory_pods': 5, 'restart_counts': 10},
             'timestamp': '2026-08-18T10:00:00'
         }
@@ -146,13 +173,12 @@ def test_predictor_get_predictions_error():
         assert result['status'] == 'error'
         assert 'timestamp' in result
 
-
 def test_troubleshooter_analyze_with_mock():
-    with patch('groq.Groq') as mock_groq_class:
+    with patch('troubleshooter.Groq') as mock_groq_class:
         mock_client = MagicMock()
         mock_groq_class.return_value = mock_client
         mock_response = MagicMock()
-        mock_response.choices[0].message.content = "Pod crashed due to OOMKilled. Increase memory limit."
+        mock_response.choices[0].message.content = "Pod crashed due to OOMKilled."
         mock_client.chat.completions.create.return_value = mock_response
         from troubleshooter import analyze_pod_issue
         result = analyze_pod_issue("test-pod", "default", "OOMKilled logs", "memory: 256Mi", "No events")
@@ -175,11 +201,11 @@ def test_troubleshooter_get_pod_events_error():
         assert "Could not fetch events" in result
 
 def test_predictor_predict_failures_with_mock():
-    with patch('groq.Groq') as mock_groq_class:
+    with patch('troubleshooter.Groq') as mock_groq_class:
         mock_client = MagicMock()
         mock_groq_class.return_value = mock_client
         mock_response = MagicMock()
-        mock_response.choices[0].message.content = "All pods healthy. No risk detected."
+        mock_response.choices[0].message.content = "All pods healthy."
         mock_client.chat.completions.create.return_value = mock_response
         from predictor import predict_failures
         result = predict_failures({'restarts': [{'metric': {'pod': 'test-pod'}, 'value': ['', '5']}]})
