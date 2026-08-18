@@ -45,11 +45,7 @@ def generate_manifest_endpoint():
         port=data.get('port', 80)
     )
     valid, message = validate_manifest(manifest)
-    return jsonify({
-        'manifest': manifest,
-        'valid': valid,
-        'message': message
-    })
+    return jsonify({'manifest': manifest, 'valid': valid, 'message': message})
 
 @app.route('/api/troubleshoot', methods=['POST'])
 def troubleshoot_endpoint():
@@ -61,16 +57,18 @@ def troubleshoot_endpoint():
     events = get_pod_events(pod_name, namespace)
     metrics = data.get('metrics', 'No metrics provided')
     analysis = analyze_pod_issue(pod_name, namespace, logs, metrics, events)
-    return jsonify({
-        'pod': pod_name,
-        'namespace': namespace,
-        'analysis': analysis
-    })
+    return jsonify({'pod': pod_name, 'namespace': namespace, 'analysis': analysis})
 
 @app.route('/api/predict-failures', methods=['GET'])
 def predict_failures_endpoint():
     from predictor import get_predictions
     result = get_predictions()
+    return jsonify(result)
+
+@app.route('/api/remediate', methods=['POST'])
+def remediate_endpoint():
+    from remediator import run_auto_remediation
+    result = run_auto_remediation()
     return jsonify(result)
 
 if __name__ == '__main__':
