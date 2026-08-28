@@ -1,0 +1,175 @@
+# Team 1: Development namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-dev
+  labels:
+    team: development
+    environment: dev
+---
+# Team 2: Staging namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-staging
+  labels:
+    team: staging
+    environment: staging
+---
+# Team 3: Production namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-prod
+  labels:
+    team: production
+    environment: prod
+---
+# Resource quota for dev team (small limits)
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: dev-quota
+  namespace: team-dev
+spec:
+  hard:
+    requests.cpu: "500m"
+    requests.memory: "512Mi"
+    limits.cpu: "1000m"
+    limits.memory: "1Gi"
+    pods: "10"
+    services: "5"
+---
+# Resource quota for staging team (medium limits)
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: staging-quota
+  namespace: team-staging
+spec:
+  hard:
+    requests.cpu: "1000m"
+    requests.memory: "1Gi"
+    limits.cpu: "2000m"
+    limits.memory: "2Gi"
+    pods: "20"
+    services: "10"
+---
+# Resource quota for prod team (larger limits)
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: prod-quota
+  namespace: team-prod
+spec:
+  hard:
+    requests.cpu: "2000m"
+    requests.memory: "2Gi"
+    limits.cpu: "4000m"
+    limits.memory: "4Gi"
+    pods: "50"
+    services: "20"
+---
+# RBAC: Dev team role (limited access)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: dev-role
+  namespace: team-dev
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "configmaps"]
+  verbs: ["get", "list", "watch", "create", "update"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "watch", "create", "update"]
+---
+# RBAC: Staging team role
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: staging-role
+  namespace: team-staging
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "configmaps", "secrets"]
+  verbs: ["get", "list", "watch", "create", "update", "delete"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets"]
+  verbs: ["get", "list", "watch", "create", "update", "delete"]
+---
+# RBAC: Prod team role (read-only for safety)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: prod-role
+  namespace: team-prod
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "configmaps"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "watch"]
+---
+# Service accounts for each team
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dev-service-account
+  namespace: team-dev
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: staging-service-account
+  namespace: team-staging
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prod-service-account
+  namespace: team-prod
+---
+# Bind roles to service accounts
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dev-role-binding
+  namespace: team-dev
+subjects:
+- kind: ServiceAccount
+  name: dev-service-account
+  namespace: team-dev
+roleRef:
+  kind: Role
+  name: dev-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: staging-role-binding
+  namespace: team-staging
+subjects:
+- kind: ServiceAccount
+  name: staging-service-account
+  namespace: team-staging
+roleRef:
+  kind: Role
+  name: staging-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: prod-role-binding
+  namespace: team-prod
+subjects:
+- kind: ServiceAccount
+  name: prod-service-account
+  namespace: team-prod
+roleRef:
+  kind: Role
+  name: prod-role
+  apiGroup: rbac.authorization.k8s.io
