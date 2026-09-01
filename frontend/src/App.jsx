@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import axios from "axios"
 
 const API = "http://172.27.46.159:5000"
@@ -6,18 +6,14 @@ const API = "http://172.27.46.159:5000"
 function PodCard({ pod }) {
   const [troubleshoot, setTroubleshoot] = useState(null)
   const [loading, setLoading] = useState(false)
-
   const handleTroubleshoot = async () => {
     setLoading(true)
     try {
-      const res = await axios.post(`${API}/api/troubleshoot`, {
-        pod_name: pod.name, namespace: pod.namespace
-      })
+      const res = await axios.post(`${API}/api/troubleshoot`, { pod_name: pod.name, namespace: pod.namespace })
       setTroubleshoot(res.data.analysis)
     } catch (e) { setTroubleshoot("Error fetching analysis") }
     setLoading(false)
   }
-
   return (
     <div style={styles.card}>
       <div style={styles.cardHeader}>
@@ -33,35 +29,24 @@ function PodCard({ pod }) {
           {loading ? "Analyzing..." : "🤖 AI Troubleshoot"}
         </button>
       )}
-      {troubleshoot && (
-        <div style={styles.analysis}>
-          <strong>AI Analysis:</strong>
-          <p style={{ whiteSpace: "pre-wrap", marginTop: 8 }}>{troubleshoot}</p>
-        </div>
-      )}
+      {troubleshoot && <div style={styles.analysis}><strong>AI Analysis:</strong><p style={{ whiteSpace: "pre-wrap", marginTop: 8 }}>{troubleshoot}</p></div>}
     </div>
   )
 }
 
 function ManifestGenerator() {
-  const [form, setForm] = useState({
-    workload_type: "Deployment", app_name: "", image: "",
-    replicas: 1, cpu_limit: "100m", memory_limit: "128Mi", port: 80
-  })
+  const [form, setForm] = useState({ workload_type: "Deployment", app_name: "", image: "", replicas: 1, cpu_limit: "100m", memory_limit: "128Mi", port: 80 })
   const [manifest, setManifest] = useState(null)
   const [valid, setValid] = useState(null)
   const [loading, setLoading] = useState(false)
-
   const handleGenerate = async () => {
     setLoading(true)
     try {
       const res = await axios.post(`${API}/api/generate-manifest`, form)
-      setManifest(res.data.manifest)
-      setValid(res.data.valid)
-    } catch (e) { setManifest("Error generating manifest") }
+      setManifest(res.data.manifest); setValid(res.data.valid)
+    } catch (e) { setManifest("Error") }
     setLoading(false)
   }
-
   return (
     <div style={styles.section}>
       <h2 style={styles.sectionTitle}>🤖 AI Manifest Generator</h2>
@@ -72,8 +57,8 @@ function ManifestGenerator() {
         <input style={styles.input} placeholder="App name" value={form.app_name} onChange={e => setForm({...form, app_name: e.target.value})} />
         <input style={styles.input} placeholder="Container image" value={form.image} onChange={e => setForm({...form, image: e.target.value})} />
         <input style={styles.input} placeholder="Replicas" type="number" value={form.replicas} onChange={e => setForm({...form, replicas: parseInt(e.target.value)})} />
-        <input style={styles.input} placeholder="CPU limit (e.g. 100m)" value={form.cpu_limit} onChange={e => setForm({...form, cpu_limit: e.target.value})} />
-        <input style={styles.input} placeholder="Memory limit (e.g. 128Mi)" value={form.memory_limit} onChange={e => setForm({...form, memory_limit: e.target.value})} />
+        <input style={styles.input} placeholder="CPU limit" value={form.cpu_limit} onChange={e => setForm({...form, cpu_limit: e.target.value})} />
+        <input style={styles.input} placeholder="Memory limit" value={form.memory_limit} onChange={e => setForm({...form, memory_limit: e.target.value})} />
         <input style={styles.input} placeholder="Port" type="number" value={form.port} onChange={e => setForm({...form, port: parseInt(e.target.value)})} />
         <button style={styles.btn} onClick={handleGenerate} disabled={loading}>{loading ? "Generating..." : "Generate Manifest"}</button>
       </div>
@@ -94,17 +79,14 @@ function PredictiveAnalysis() {
   const [predictions, setPredictions] = useState(null)
   const [loading, setLoading] = useState(false)
   const [lastChecked, setLastChecked] = useState(null)
-
   const fetchPredictions = async () => {
     setLoading(true)
     try {
       const res = await axios.get(`${API}/api/predict-failures`)
-      setPredictions(res.data)
-      setLastChecked(new Date().toLocaleTimeString())
-    } catch (e) { setPredictions({ status: "error", predictions: "Could not fetch predictions" }) }
+      setPredictions(res.data); setLastChecked(new Date().toLocaleTimeString())
+    } catch (e) { setPredictions({ status: "error", predictions: "Could not fetch" }) }
     setLoading(false)
   }
-
   return (
     <div style={styles.section}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -112,22 +94,17 @@ function PredictiveAnalysis() {
         <button style={styles.btn} onClick={fetchPredictions} disabled={loading}>{loading ? "Analyzing..." : "🔍 Analyze Cluster"}</button>
       </div>
       {lastChecked && <p style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>Last checked: {lastChecked}</p>}
-      {!predictions && !loading && (
-        <div style={{ textAlign: "center", padding: 40, color: "#64748b" }}>
-          <p style={{ fontSize: 32, marginBottom: 8 }}>🔮</p>
-          <p>Click "Analyze Cluster" to get AI predictions about potential failures</p>
-        </div>
-      )}
+      {!predictions && !loading && <div style={{ textAlign: "center", padding: 40, color: "#64748b" }}><p style={{ fontSize: 32 }}>🔮</p><p>Click Analyze Cluster to get AI predictions</p></div>}
       {predictions && predictions.metrics_collected && (
         <div style={styles.metricsRow}>
-          <div style={styles.metricChip}>📊 CPU pods: {predictions.metrics_collected.cpu_pods}</div>
-          <div style={styles.metricChip}>💾 Memory pods: {predictions.metrics_collected.memory_pods}</div>
-          <div style={styles.metricChip}>🔄 Restart counts: {predictions.metrics_collected.restart_counts}</div>
+          <div style={styles.metricChip}>📊 CPU: {predictions.metrics_collected.cpu_pods}</div>
+          <div style={styles.metricChip}>💾 Memory: {predictions.metrics_collected.memory_pods}</div>
+          <div style={styles.metricChip}>🔄 Restarts: {predictions.metrics_collected.restart_counts}</div>
         </div>
       )}
       {predictions && predictions.predictions && (
         <div style={styles.predictionBox}>
-          <strong style={{ color: "#38bdf8", display: "block", marginBottom: 12 }}>🤖 AI Analysis & Predictions:</strong>
+          <strong style={{ color: "#38bdf8", display: "block", marginBottom: 12 }}>🤖 AI Analysis:</strong>
           <p style={{ whiteSpace: "pre-wrap", fontSize: 13, lineHeight: 1.7, color: "#cbd5e1" }}>{predictions.predictions}</p>
         </div>
       )}
@@ -138,82 +115,40 @@ function PredictiveAnalysis() {
 function AutoRemediation() {
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
-
   const runRemediation = async () => {
     setLoading(true)
-    try {
-      const res = await axios.post(`${API}/api/remediate`)
-      setResult(res.data)
-    } catch (e) { setResult({ error: "Failed to run remediation" }) }
+    try { const res = await axios.post(`${API}/api/remediate`); setResult(res.data) }
+    catch (e) { setResult({ error: "Failed" }) }
     setLoading(false)
   }
-
-  const getRiskColor = (risk) => {
-    if (risk === 'LOW') return '#22c55e'
-    if (risk === 'MEDIUM') return '#f59e0b'
-    if (risk === 'HIGH') return '#ef4444'
-    return '#64748b'
-  }
-
-  const getActionIcon = (action) => {
-    if (action === 'RESTART') return '🔄'
-    if (action === 'SCALE_DOWN_UP') return '⚖️'
-    if (action === 'SKIP') return '⏭️'
-    return '❓'
-  }
-
+  const getRiskColor = (r) => r === 'LOW' ? '#22c55e' : r === 'MEDIUM' ? '#f59e0b' : '#ef4444'
   return (
     <div style={styles.section}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <h2 style={styles.sectionTitle}>🛠️ Auto-Remediation</h2>
-        <button style={{...styles.btn, background: "#ef4444"}} onClick={runRemediation} disabled={loading}>
-          {loading ? "Running..." : "⚡ Run Auto-Fix"}
-        </button>
+        <button style={{...styles.btn, background: "#ef4444"}} onClick={runRemediation} disabled={loading}>{loading ? "Running..." : "⚡ Run Auto-Fix"}</button>
       </div>
-
-      {!result && !loading && (
-        <div style={{ textAlign: "center", padding: 40, color: "#64748b" }}>
-          <p style={{ fontSize: 32, marginBottom: 8 }}>🛠️</p>
-          <p>Click "Run Auto-Fix" to scan for problems and fix them automatically</p>
-          <p style={{ fontSize: 12, marginTop: 8, color: "#475569" }}>AI will analyse each problematic pod and decide the safest remediation action</p>
-        </div>
-      )}
-
+      {!result && !loading && <div style={{ textAlign: "center", padding: 40, color: "#64748b" }}><p style={{ fontSize: 32 }}>🛠️</p><p>Click Run Auto-Fix to scan and fix issues automatically</p></div>}
       {result && (
         <div>
           <div style={styles.metricsRow}>
-            <div style={styles.metricChip}>🔍 Pods scanned: {result.pods_scanned}</div>
-            <div style={styles.metricChip}>🛠️ Actions taken: {result.remediations?.filter(r => r.ai_decision !== 'SKIP').length || 0}</div>
-            <div style={styles.metricChip}>✅ Successful: {result.remediations?.filter(r => r.execution?.success).length || 0}</div>
+            <div style={styles.metricChip}>🔍 Scanned: {result.pods_scanned}</div>
+            <div style={styles.metricChip}>🛠️ Actions: {result.remediations?.filter(r => r.ai_decision !== 'SKIP').length || 0}</div>
+            <div style={styles.metricChip}>✅ Success: {result.remediations?.filter(r => r.execution?.success).length || 0}</div>
           </div>
-
-          {result.remediations && result.remediations.length === 0 && (
-            <div style={{ textAlign: "center", padding: 24, color: "#22c55e" }}>
-              <p style={{ fontSize: 24 }}>✅</p>
-              <p>All pods healthy — no remediation needed!</p>
-            </div>
-          )}
-
-          {result.remediations && result.remediations.map((r, i) => (
+          {result.remediations?.length === 0 && <div style={{ textAlign: "center", padding: 24, color: "#22c55e" }}><p>✅ All pods healthy!</p></div>}
+          {result.remediations?.map((r, i) => (
             <div key={i} style={{...styles.card, marginBottom: 12}}>
               <div style={styles.cardHeader}>
-                <span style={styles.podName}>{getActionIcon(r.ai_decision)} {r.pod}</span>
-                <span style={{...styles.badge, background: getRiskColor(r.risk_level)}}>{r.risk_level} RISK</span>
+                <span style={styles.podName}>{r.pod}</span>
+                <span style={{...styles.badge, background: getRiskColor(r.risk_level)}}>{r.risk_level}</span>
               </div>
-              <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>NS: {r.namespace} | Restarts: {r.restarts}</div>
-              <div style={{ fontSize: 13, marginBottom: 8 }}>
-                <strong style={{ color: "#38bdf8" }}>AI Decision:</strong> {r.ai_decision}
-              </div>
-              <div style={{ fontSize: 13, marginBottom: 8 }}>
-                <strong style={{ color: "#38bdf8" }}>Reason:</strong> {r.ai_reason}
-              </div>
+              <div style={{ fontSize: 13, marginBottom: 4 }}><strong style={{ color: "#38bdf8" }}>Decision:</strong> {r.ai_decision}</div>
+              <div style={{ fontSize: 13, marginBottom: 8 }}><strong style={{ color: "#38bdf8" }}>Reason:</strong> {r.ai_reason}</div>
               {r.execution && (
-                <div style={{ fontSize: 12, background: "#0f172a", padding: 10, borderRadius: 6, marginTop: 8 }}>
-                  <div style={{ color: r.execution.success ? "#22c55e" : "#ef4444", marginBottom: 4 }}>
-                    {r.execution.success ? "✅ Executed" : "❌ Failed"}
-                  </div>
-                  {r.execution.command && <div style={{ color: "#94a3b8", fontFamily: "monospace" }}>{r.execution.command}</div>}
-                  {r.execution.output && <div style={{ color: "#64748b", marginTop: 4 }}>{r.execution.output}</div>}
+                <div style={{ fontSize: 12, background: "#0f172a", padding: 10, borderRadius: 6 }}>
+                  <div style={{ color: r.execution.success ? "#22c55e" : "#ef4444" }}>{r.execution.success ? "✅ Executed" : "❌ Failed"}</div>
+                  {r.execution.command && <div style={{ color: "#94a3b8", fontFamily: "monospace", marginTop: 4 }}>{r.execution.command}</div>}
                 </div>
               )}
             </div>
@@ -224,15 +159,141 @@ function AutoRemediation() {
   )
 }
 
+function NLPChat() {
+  const [messages, setMessages] = useState([
+    { role: "assistant", content: "👋 Hi! I'm your K8s AI assistant. Tell me what you want to do in plain English!\n\nTry:\n• 'Show me all pods in monitoring namespace'\n• 'Deploy a redis cache with 2 replicas'\n• 'Scale nginx-app to 3 replicas'\n• 'What's the status of flask-backend?'" }
+  ])
+  const [input, setInput] = useState("")
+  const [loading, setLoading] = useState(false)
+  const bottomRef = useRef(null)
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }) }, [messages])
+
+  const sendMessage = async () => {
+    if (!input.trim()) return
+    const userMsg = input.trim()
+    setInput("")
+    setMessages(prev => [...prev, { role: "user", content: userMsg }])
+    setLoading(true)
+    try {
+      const res = await axios.post(`${API}/api/nlp`, { command: userMsg })
+      const result = res.data.result
+      const parsed = res.data.parsed
+      let response = ""
+      if (result.action === 'STATUS') {
+        response = `Found **${result.pods?.length || 0} pods**:\n\n`
+        result.pods?.slice(0, 10).forEach(p => {
+          response += `• ${p.name} (${p.namespace}) — ${p.status} | Restarts: ${p.restarts}\n`
+        })
+        if ((result.pods?.length || 0) > 10) response += `\n...and ${result.pods.length - 10} more`
+      } else if (result.action === 'DEPLOY') {
+        response = result.valid
+          ? `✅ **Manifest generated for ${parsed.app_name}!**\n\nWorkload: ${parsed.workload_type}\nImage: ${parsed.image}\nReplicas: ${parsed.replicas}\nMemory: ${parsed.memory_limit}\n\nManifest is valid and ready to deploy!`
+          : `❌ Could not generate valid manifest: ${result.validation_message}`
+      } else if (result.action === 'SCALE') {
+        response = result.success
+          ? `✅ **Scaled ${parsed.app_name} to ${parsed.replicas} replicas!**\n\n\`${result.command}\``
+          : `❌ Scale failed: ${result.message}`
+      } else if (result.action === 'DELETE') {
+        response = result.success
+          ? `✅ **Deleted ${parsed.app_name}!**\n\n\`${result.command}\``
+          : `❌ Delete failed: ${result.message}`
+      } else if (result.action === 'TROUBLESHOOT') {
+        response = `🔍 **AI Analysis for ${result.pod}:**\n\n${result.message}`
+      } else {
+        response = result.message || "Command processed!"
+      }
+      setMessages(prev => [...prev, { role: "assistant", content: response }])
+    } catch (e) {
+      setMessages(prev => [...prev, { role: "assistant", content: "❌ Error processing command. Is Flask running?" }])
+    }
+    setLoading(false)
+  }
+
+  return (
+    <div style={styles.section}>
+      <h2 style={styles.sectionTitle}>🗣️ Natural Language Cluster Control</h2>
+      <div style={{ background: "#0f172a", borderRadius: 10, border: "1px solid #334155", height: 420, display: "flex", flexDirection: "column" }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+          {messages.map((msg, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start" }}>
+              <div style={{
+                maxWidth: "80%", padding: "10px 14px", borderRadius: 10, fontSize: 13, lineHeight: 1.6,
+                background: msg.role === "user" ? "#38bdf8" : "#1e293b",
+                color: msg.role === "user" ? "#0f172a" : "#cbd5e1",
+                whiteSpace: "pre-wrap"
+              }}>
+                {msg.content}
+              </div>
+            </div>
+          ))}
+          {loading && (
+            <div style={{ display: "flex", justifyContent: "flex-start" }}>
+              <div style={{ padding: "10px 14px", borderRadius: 10, background: "#1e293b", color: "#64748b", fontSize: 13 }}>
+                🤖 Thinking...
+              </div>
+            </div>
+          )}
+          <div ref={bottomRef} />
+        </div>
+        <div style={{ padding: 12, borderTop: "1px solid #334155", display: "flex", gap: 8 }}>
+          <input
+            style={{...styles.input, flex: 1, marginBottom: 0}}
+            placeholder="Type a command in plain English..."
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && !loading && sendMessage()}
+          />
+          <button style={{...styles.btn, marginTop: 0, padding: "8px 16px"}} onClick={sendMessage} disabled={loading || !input.trim()}>
+            Send
+          </button>
+        </div>
+      </div>
+      <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {["Show all pods", "Show pods in monitoring", "Deploy redis with 2 replicas", "Scale nginx-app to 3 replicas"].map(s => (
+          <button key={s} style={{ fontSize: 11, padding: "4px 10px", borderRadius: 6, border: "1px solid #334155", background: "transparent", color: "#64748b", cursor: "pointer" }}
+            onClick={() => { setInput(s) }}>
+            {s}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function HealthScore({ pods }) {
+  const running = pods.filter(p => p.status === "Running").length
+  const highRestarts = pods.filter(p => p.restarts > 10).length
+  const crashed = pods.filter(p => p.status !== "Running").length
+  let score = 100
+  score -= highRestarts * 5
+  score -= crashed * 10
+  score = Math.max(0, Math.min(100, score))
+  const color = score >= 80 ? "#22c55e" : score >= 60 ? "#f59e0b" : "#ef4444"
+  const label = score >= 80 ? "Healthy" : score >= 60 ? "Warning" : "Critical"
+  return (
+    <div style={{ background: "#1e293b", borderRadius: 12, padding: "20px 32px", textAlign: "center", border: `2px solid ${color}` }}>
+      <div style={{ fontSize: 36, fontWeight: 700, color }}>{score}</div>
+      <div style={{ color, fontSize: 14, fontWeight: 600 }}>{label}</div>
+      <div style={{ color: "#64748b", fontSize: 12, marginTop: 4 }}>Health Score</div>
+    </div>
+  )
+}
+
 export default function App() {
   const [pods, setPods] = useState([])
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState("pods")
+  const [tab, setTab] = useState("chat")
 
   useEffect(() => {
-    axios.get(`${API}/api/cluster/pods`)
-      .then(res => { setPods(res.data.pods); setLoading(false) })
-      .catch(() => setLoading(false))
+    const fetchPods = () => {
+      axios.get(`${API}/api/cluster/pods`)
+        .then(res => { setPods(res.data.pods); setLoading(false) })
+        .catch(() => setLoading(false))
+    }
+    fetchPods()
+    const interval = setInterval(fetchPods, 30000)
+    return () => clearInterval(interval)
   }, [])
 
   const running = pods.filter(p => p.status === "Running").length
@@ -248,13 +309,14 @@ export default function App() {
         <div style={styles.statCard}><div style={styles.statVal}>{pods.length}</div><div style={styles.statLabel}>Total Pods</div></div>
         <div style={styles.statCard}><div style={{...styles.statVal, color: "#22c55e"}}>{running}</div><div style={styles.statLabel}>Running</div></div>
         <div style={styles.statCard}><div style={{...styles.statVal, color: "#f59e0b"}}>{issues}</div><div style={styles.statLabel}>High Restarts</div></div>
+        <HealthScore pods={pods} />
       </div>
       <div style={styles.tabs}>
-        <button style={{...styles.tab, ...(tab==="pods"?styles.activeTab:{})}} onClick={() => setTab("pods")}>Cluster Pods</button>
-        <button style={{...styles.tab, ...(tab==="generate"?styles.activeTab:{})}} onClick={() => setTab("generate")}>AI Generator</button>
-        <button style={{...styles.tab, ...(tab==="predict"?styles.activeTab:{})}} onClick={() => setTab("predict")}>🔮 Predictions</button>
-        <button style={{...styles.tab, ...(tab==="remediate"?styles.activeTab:{})}} onClick={() => setTab("remediate")}>🛠️ Auto-Fix</button>
+        {[["chat","🗣️ Chat"], ["pods","Cluster Pods"], ["generate","AI Generator"], ["predict","🔮 Predictions"], ["remediate","🛠️ Auto-Fix"]].map(([id, label]) => (
+          <button key={id} style={{...styles.tab, ...(tab===id?styles.activeTab:{})}} onClick={() => setTab(id)}>{label}</button>
+        ))}
       </div>
+      {tab === "chat" && <NLPChat />}
       {tab === "pods" && (
         <div style={styles.section}>
           <h2 style={styles.sectionTitle}>Cluster Pods</h2>
@@ -273,7 +335,7 @@ const styles = {
   header: { textAlign: "center", marginBottom: 32 },
   title: { fontSize: 32, fontWeight: 700, color: "#38bdf8", margin: 0 },
   subtitle: { color: "#94a3b8", marginTop: 8 },
-  stats: { display: "flex", gap: 16, marginBottom: 32, justifyContent: "center" },
+  stats: { display: "flex", gap: 16, marginBottom: 32, justifyContent: "center", flexWrap: "wrap" },
   statCard: { background: "#1e293b", borderRadius: 12, padding: "20px 32px", textAlign: "center" },
   statVal: { fontSize: 36, fontWeight: 700, color: "#38bdf8" },
   statLabel: { color: "#94a3b8", marginTop: 4, fontSize: 14 },

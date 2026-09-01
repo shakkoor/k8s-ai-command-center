@@ -9,19 +9,14 @@ load_dotenv('../.env')
 app = Flask(__name__)
 CORS(app)
 
-# Initialize audit table on startup
 try:
     from audit_logger import setup_audit_table
     setup_audit_table()
-except:
-    pass
+except: pass
 
 @app.route('/health', methods=['GET'])
 def health():
-    return jsonify({
-        'status': 'ok',
-        'message': 'K8sAI Command Center backend is running'
-    })
+    return jsonify({'status': 'ok', 'message': 'K8sAI Command Center backend is running'})
 
 @app.route('/api/cluster/pods', methods=['GET'])
 def get_pods():
@@ -65,8 +60,7 @@ def generate_manifest_endpoint():
         from audit_logger import log_action
         log_action('generate_manifest', resource_type=data.get('workload_type'),
                    resource_name=data.get('app_name'), status='success' if valid else 'error',
-                   details={'valid': valid, 'workload_type': data.get('workload_type')},
-                   ai_model='gemini-2.5-flash',
+                   details={'valid': valid}, ai_model='gemini-2.5-flash',
                    response_time_ms=int((time.time()-start)*1000))
     except: pass
     return jsonify({'manifest': manifest, 'valid': valid, 'message': message})
@@ -112,10 +106,8 @@ def remediate_endpoint():
     result = run_auto_remediation()
     try:
         from audit_logger import log_action
-        log_action('auto_remediate', resource_type='Cluster',
-                   status='success',
-                   details={'pods_scanned': result.get('pods_scanned'),
-                            'actions_taken': len(result.get('remediations', []))},
+        log_action('auto_remediate', resource_type='Cluster', status='success',
+                   details={'pods_scanned': result.get('pods_scanned')},
                    ai_model='groq/compound-mini',
                    response_time_ms=int((time.time()-start)*1000))
     except: pass
@@ -131,6 +123,26 @@ def get_audit_logs_endpoint():
                           namespace_filter=namespace_filter)
     summary = get_audit_summary()
     return jsonify({'logs': logs, 'summary': summary})
+
+@app.route('/api/nlp', methods=['POST'])
+def nlp_endpoint():
+    start = time.time()
+    from nlp_controller import process_natural_language, execute_nlp_action
+    data = request.json
+    command = data.get('command', '')
+    parsed = process_natural_language(command)
+    result = execute_nlp_action(parsed)
+    try:
+        from audit_logger import log_action
+        log_action('nlp_command', resource_type=parsed.get('action'),
+                   resource_name=parsed.get('app_name'),
+                   namespace=parsed.get('namespace'),
+                   status='success' if result.get('success') else 'error',
+                   details={'command': command, 'action': parsed.get('action')},
+                   ai_model='groq/compound-mini',
+                   response_time_ms=int((time.time()-start)*1000))
+    except: pass
+    return jsonify({'command': command, 'parsed': parsed, 'result': result})
 
 if __name__ == '__main__':
     app.run(
