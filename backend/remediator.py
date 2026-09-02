@@ -170,3 +170,25 @@ def run_auto_remediation():
         'timestamp': datetime.now().isoformat()
     }
 
+
+
+def run_auto_remediation_with_alerts():
+    """Run remediation and send Teams alerts"""
+    from alerting import alert_remediation, alert_crashloop
+    
+    result = run_auto_remediation()
+    
+    for r in result.get('remediations', []):
+        if r['is_crashloop']:
+            alert_crashloop(r['pod'], r['namespace'])
+        
+        if r['ai_decision'] != 'SKIP':
+            alert_remediation(
+                pod_name=r['pod'],
+                namespace=r['namespace'],
+                action=r['ai_decision'],
+                reason=r['ai_reason'],
+                success=r['execution']['success']
+            )
+    
+    return result
