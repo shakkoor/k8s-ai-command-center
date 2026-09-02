@@ -211,3 +211,92 @@ def test_predictor_predict_failures_with_mock():
         result = predict_failures({'restarts': [{'metric': {'pod': 'test-pod'}, 'value': ['', '5']}]})
         assert len(result) > 0
 
+
+# Tests for new Phase 2 features
+
+def test_nlp_endpoint_status(client):
+    with patch('nlp_controller.process_natural_language') as mock_parse, \
+         patch('nlp_controller.execute_nlp_action') as mock_exec:
+        mock_parse.return_value = {'action': 'STATUS', 'app_name': None, 'namespace': 'default'}
+        mock_exec.return_value = {'action': 'STATUS', 'success': True, 'pods': [], 'message': 'Found 0 pods'}
+        response = client.post('/api/nlp', json={'command': 'show all pods'})
+        assert response.status_code == 200
+        data = response.get_json()
+        assert 'command' in data
+        assert 'result' in data
+
+def test_nlp_endpoint_deploy(client):
+    with patch('nlp_controller.process_natural_language') as mock_parse, \
+         patch('nlp_controller.execute_nlp_action') as mock_exec:
+        mock_parse.return_value = {'action': 'DEPLOY', 'app_name': 'test', 'image': 'nginx', 'replicas': 1, 'namespace': 'default', 'workload_type': 'Deployment', 'memory_limit': '128Mi', 'cpu_limit': '100m', 'port': 80}
+        mock_exec.return_value = {'action': 'DEPLOY', 'success': True, 'valid': True, 'manifest': 'apiVersion: v1'}
+        response = client.post('/api/nlp', json={'command': 'deploy nginx app'})
+        assert response.status_code == 200
+
+def test_estimate_cost_endpoint(client):
+    with patch('cost_estimator.estimate_cost') as mock_cost:
+        mock_cost.return_value = {
+            'app_name': 'test-app',
+            'cost_breakdown': {'total_monthly_inr': 280, 'total_monthly_usd': 3.33, 'cpu_cost_inr': 240, 'memory_cost_inr': 40, 'cpu_cores': 0.1, 'memory_gb': 0.125, 'storage_cost_inr': 0},
+            'ai_advice': 'Cost looks reasonable.',
+            'pricing_note': 'AKS India region'
+        }
+        response = client.post('/api/estimate-cost', json={
+            'app_name': 'test-app', 'workload_type': 'Deployment',
+            'replicas': 1, 'cpu_limit': '100m', 'memory_limit': '128Mi'
+        })
+        assert response.status_code == 200
+        data = response.get_json()
+        assert 'cost_breakdown' in data
+        assert 'ai_advice' in data
+
+def test_audit_logs_endpoint(client):
+    with patch('audit_logger.get_audit_logs') as mock_logs, \
+         patch('audit_logger.get_audit_summary') as mock_summary:
+        mock_logs.return_value = []
+        mock_summary.return_value = {'total': 0, 'successes': 0, 'errors': 0}
+        response = client.get('/api/audit-logs')
+        assert response.status_code == 200
+        data = response.get_json()
+        assert 'logs' in data
+        assert 'summary' in data
+
+def test_remediate_endpoint(client):
+    with patch('remediator.run_auto_remediation_with_alerts') as mock_rem:
+        mock_rem.return_value = {
+            'pods_scanned': 0,
+            'remediations': [],
+            'timestamp': '2026-09-02T10:00:00'
+        }
+        response = client.post('/api/remediate')
+        assert response.status_code == 200
+        data = response.get_json()
+        assert 'pods_scanned' in data
+        assert 'remediations' in data
+
+def test_cost_calculator():
+    from cost_estimator import calculate_cost
+    result = calculate_cost('100m', '128Mi', 1, 'Deployment')
+    assert result['total_monthly_inr'] > 0
+    assert result['cpu_cores'] == 0.1
+    assert result['memory_gb'] == round(128/1024, 3)
+
+def test_cost_calculator_statefulset():
+    from cost_estimator import calculate_cost, parse_cpu, parse_memory
+    result = calculate_cost('200m', '256Mi', 2, 'StatefulSet')
+    assert result['storage_cost_inr'] > 0
+    assert result['total_monthly_inr'] > 0
+
+
+
+def test_parse_cpu():
+    from cost_estimator import parse_cpu
+    assert parse_cpu('100m') == 0.1
+    assert parse_cpu('500m') == 0.5
+    assert parse_cpu('1') == 1.0
+
+def test_parse_memory():
+    from cost_estimator import parse_memory
+    assert parse_memory('128Mi') == round(128/1024, 3)
+    assert parse_memory('1Gi') == 1.0
+
