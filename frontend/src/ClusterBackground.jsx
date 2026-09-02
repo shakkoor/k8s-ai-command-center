@@ -124,7 +124,7 @@ export default function ClusterBackground({ dark = true }) {
   return (
     <canvas ref={canvasRef} style={{
       position: "fixed", inset: 0, width: "100%", height: "100%",
-      pointerEvents: "none", zIndex: 0, opacity: dark ? 0.6 : 0.4
+      pointerEvents: "none", zIndex: 0, opacity: 0.25
     }} />
   )
 }

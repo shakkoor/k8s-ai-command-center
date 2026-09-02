@@ -1,243 +1,201 @@
 import { useState, useEffect, useRef } from "react"
 import axios from "axios"
+import {
+  MessageSquare, Box, Sparkles, Activity, Wrench, Network,
+  Cpu, MemoryStick, RotateCw, AlertCircle, CheckCircle, XCircle,
+  Send, Bot, Terminal, Database, Bell, DollarSign, Search,
+  ChevronRight, Circle, Zap, TrendingUp, Server, Clock, Filter
+} from "lucide-react"
 import Architecture from "./Architecture.jsx"
 import ClusterBackground from "./ClusterBackground.jsx"
 
 const API = "http://172.27.46.159:5000"
 
-// ============ VIBRANT THEME SYSTEM ============
-// Each feature gets its own gradient identity
-const themes = {
-  chat:     { grad: "linear-gradient(135deg,#3b82f6,#06b6d4)", glow: "rgba(59,130,246,0.4)", solid: "#3b82f6", light: "#60a5fa", bg: "rgba(59,130,246,0.08)" },
-  pods:     { grad: "linear-gradient(135deg,#8b5cf6,#d946ef)", glow: "rgba(139,92,246,0.4)", solid: "#8b5cf6", light: "#a78bfa", bg: "rgba(139,92,246,0.08)" },
-  generate: { grad: "linear-gradient(135deg,#f59e0b,#f43f5e)", glow: "rgba(245,158,11,0.4)", solid: "#f59e0b", light: "#fbbf24", bg: "rgba(245,158,11,0.08)" },
-  predict:  { grad: "linear-gradient(135deg,#ec4899,#a855f7)", glow: "rgba(236,72,153,0.4)", solid: "#ec4899", light: "#f472b6", bg: "rgba(236,72,153,0.08)" },
-  remediate:{ grad: "linear-gradient(135deg,#10b981,#059669)", glow: "rgba(16,185,129,0.4)", solid: "#10b981", light: "#34d399", bg: "rgba(16,185,129,0.08)" },
-  arch:     { grad: "linear-gradient(135deg,#06b6d4,#3b82f6)", glow: "rgba(6,182,212,0.4)", solid: "#06b6d4", light: "#22d3ee", bg: "rgba(6,182,212,0.08)" },
+// ============ ENTERPRISE PALETTE (GitHub/Datadog inspired) ============
+const t = {
+  bg: "#0d1117",
+  bgElevated: "#161b22",
+  bgInset: "#010409",
+  panel: "#161b22",
+  panelHover: "#1c2128",
+  border: "#30363d",
+  borderMuted: "#21262d",
+  text: "#e6edf3",
+  textMuted: "#7d8590",
+  textSubtle: "#484f58",
+  accent: "#2f81f7",
+  accentMuted: "#388bfd",
+  green: "#3fb950",
+  greenDim: "#238636",
+  red: "#f85149",
+  redDim: "#da3633",
+  amber: "#d29922",
+  amberDim: "#9e6a03",
+  purple: "#a371f7",
+  cyan: "#39c5cf",
+  pink: "#db61a2",
 }
 
-let DARK = true
-const themeColors = {
-  dark: {
-    bg: "#0a0e1a", card: "rgba(20,27,45,0.7)", cardSolid: "#141b2d",
-    border: "rgba(255,255,255,0.08)", text: "#f8fafc", textMuted: "#8b95a9", textDim: "#c3cad9",
-    inputBg: "rgba(10,14,26,0.8)",
-  },
-  light: {
-    bg: "#f1f5f9", card: "rgba(255,255,255,0.85)", cardSolid: "#ffffff",
-    border: "rgba(15,23,42,0.1)", text: "#0f172a", textMuted: "#64748b", textDim: "#334155",
-    inputBg: "rgba(255,255,255,0.9)",
-  }
-}
-const accents = { green: "#10b981", red: "#f43f5e", amber: "#f59e0b", blue: "#3b82f6", purple: "#8b5cf6", pink: "#ec4899", cyan: "#06b6d4" }
-const getC = (dark) => ({ ...themeColors[dark ? "dark" : "light"], ...accents })
-let c = getC(true)
+// status color helper
+const statusColor = (s) => s === "Running" ? t.green : s === "Pending" ? t.amber : t.red
 
-// ============ BASE COMPONENTS ============
-const Spinner = ({ color = "#fff" }) => (
-  <div className="spin" style={{ width: 15, height: 15, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.2)", borderTopColor: color }} />
+// ============ PRIMITIVES ============
+const Spinner = ({ size = 14, color = t.textMuted }) => (
+  <div className="spin" style={{ width: size, height: size, borderRadius: "50%", border: `2px solid ${t.border}`, borderTopColor: color, display: "inline-block" }} />
 )
 
-const GlowCard = ({ children, theme, style = {}, hover = false }) => {
-  const [h, setH] = useState(false)
-  return (
-    <div
-      onMouseEnter={() => hover && setH(true)}
-      onMouseLeave={() => hover && setH(false)}
-      style={{
-        background: c.card,
-        border: `1px solid ${h ? theme?.glow || c.border : c.border}`,
-        borderRadius: 20,
-        backdropFilter: "blur(24px)",
-        boxShadow: h ? `0 12px 48px ${theme?.glow || "rgba(0,0,0,0.3)"}` : "0 4px 24px rgba(0,0,0,0.2)",
-        transition: "all 0.3s cubic-bezier(0.4,0,0.2,1)",
-        transform: h ? "translateY(-2px)" : "none",
-        ...style
-      }}>{children}</div>
-  )
-}
+const Panel = ({ children, style = {}, pad = 0 }) => (
+  <div style={{ background: t.panel, border: `1px solid ${t.border}`, borderRadius: 6, padding: pad, ...style }}>{children}</div>
+)
 
-const Btn = ({ children, onClick, disabled, gradient, style = {} }) => {
+const Btn = ({ children, onClick, disabled, variant = "default", size = "md", style = {} }) => {
   const [h, setH] = useState(false)
+  const variants = {
+    primary: { bg: h ? "#2c974b" : t.greenDim, color: "#fff", border: "rgba(240,246,252,0.1)" },
+    default: { bg: h ? t.panelHover : t.bgElevated, color: t.text, border: t.border },
+    danger: { bg: h ? t.redDim : "#21262d", color: h ? "#fff" : t.red, border: h ? t.redDim : t.border },
+  }
+  const v = variants[variant]
+  const sizes = { sm: "5px 12px", md: "6px 16px", lg: "8px 20px" }
   return (
-    <button onClick={onClick} disabled={disabled}
-      onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
+    <button onClick={onClick} disabled={disabled} onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
       style={{
-        display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
-        padding: "11px 22px", borderRadius: 14, border: "none",
-        fontSize: 13.5, fontWeight: 600, cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.5 : 1, fontFamily: "inherit", color: "#fff",
-        background: gradient || "linear-gradient(135deg,#6366f1,#8b5cf6)",
-        boxShadow: h && !disabled ? "0 8px 30px rgba(99,102,241,0.5)" : "0 4px 16px rgba(99,102,241,0.3)",
-        transform: h && !disabled ? "translateY(-2px) scale(1.02)" : "none",
-        transition: "all 0.2s", ...style
+        display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7,
+        padding: sizes[size], borderRadius: 6, border: `1px solid ${v.border}`,
+        background: v.bg, color: v.color, fontSize: 13, fontWeight: 500,
+        cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.6 : 1,
+        transition: "all 0.12s", whiteSpace: "nowrap", ...style
       }}>{children}</button>
   )
 }
 
-const Pill = ({ children, color }) => (
+const Tag = ({ children, color = t.textMuted, dot = false }) => (
   <span style={{
-    display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 11px",
-    borderRadius: 20, fontSize: 11, fontWeight: 700, letterSpacing: "0.02em",
-    background: `${color}20`, color, border: `1px solid ${color}40`
-  }}>{children}</span>
-)
-
-const SectionTitle = ({ theme, icon, title, subtitle }) => (
-  <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 28 }}>
-    <div className="float" style={{
-      width: 54, height: 54, borderRadius: 16, background: theme.grad,
-      display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26,
-      boxShadow: `0 8px 32px ${theme.glow}`
-    }}>{icon}</div>
-    <div>
-      <h2 style={{ fontSize: 22, fontWeight: 800, color: c.text, margin: 0, letterSpacing: "-0.02em" }}>{title}</h2>
-      <p style={{ fontSize: 13, color: c.textMuted, margin: 0, marginTop: 3 }}>{subtitle}</p>
-    </div>
-  </div>
-)
-
-const Tile = ({ label, value, sub, icon, color }) => (
-  <div style={{
-    padding: "16px 18px", borderRadius: 16, position: "relative", overflow: "hidden",
-    background: `linear-gradient(135deg,${color}12,transparent)`,
-    border: `1px solid ${color}25`
+    display: "inline-flex", alignItems: "center", gap: 5, padding: "1px 8px",
+    borderRadius: 20, fontSize: 11, fontWeight: 500, lineHeight: "18px",
+    background: `${color}1a`, color, border: `1px solid ${color}33`
   }}>
-    <div style={{ position: "absolute", top: -20, right: -20, width: 70, height: 70, borderRadius: "50%", background: `${color}15`, filter: "blur(20px)" }} />
-    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, position: "relative" }}>
-      <span style={{ fontSize: 15 }}>{icon}</span>
-      <span style={{ fontSize: 10.5, color: c.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700 }}>{label}</span>
+    {dot && <span style={{ width: 6, height: 6, borderRadius: "50%", background: color }} />}
+    {children}
+  </span>
+)
+
+const PageHead = ({ icon: Icon, title, subtitle, right }) => (
+  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, paddingBottom: 16, borderBottom: `1px solid ${t.borderMuted}` }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ width: 32, height: 32, borderRadius: 6, background: t.bgElevated, border: `1px solid ${t.border}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Icon size={17} color={t.textMuted} strokeWidth={2} />
+      </div>
+      <div>
+        <h1 style={{ fontSize: 16, fontWeight: 600, color: t.text, letterSpacing: "-0.01em" }}>{title}</h1>
+        <p style={{ fontSize: 12.5, color: t.textMuted, marginTop: 1 }}>{subtitle}</p>
+      </div>
     </div>
-    <div style={{ fontSize: 22, fontWeight: 800, color, position: "relative", letterSpacing: "-0.02em" }}>{value}</div>
-    <div style={{ fontSize: 11, color: c.textMuted, marginTop: 2 }}>{sub}</div>
+    {right}
   </div>
 )
 
-// ============ HEADER ============
-const Header = ({ health, running, total, issues, dark, setDark }) => {
-  const hc = health >= 80 ? c.green : health >= 60 ? c.amber : c.red
-  const r = 22, circ = 2 * Math.PI * r, offset = circ - (health / 100) * circ
+// KPI stat used in headers (Datadog style)
+const Stat = ({ label, value, delta, color = t.text }) => (
+  <div style={{ padding: "10px 16px", borderRight: `1px solid ${t.borderMuted}` }}>
+    <div style={{ fontSize: 11, color: t.textMuted, fontWeight: 500, marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</div>
+    <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+      <span style={{ fontSize: 20, fontWeight: 600, color, fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}>{value}</span>
+      {delta && <span style={{ fontSize: 11, color: t.textMuted }}>{delta}</span>}
+    </div>
+  </div>
+)
 
+// ============ TOP BAR ============
+const TopBar = ({ health, running, total, issues, dark, setDark }) => {
+  const hc = health >= 80 ? t.green : health >= 60 ? t.amber : t.red
   return (
-    <header style={{
-      position: "sticky", top: 0, zIndex: 100,
-      background: "rgba(10,14,26,0.8)", backdropFilter: "blur(24px)",
-      borderBottom: `1px solid ${c.border}`, padding: "0 28px"
-    }}>
-      <div style={{ maxWidth: 1440, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 76 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 15 }}>
-          <div className="glow" style={{
-            width: 46, height: 46, borderRadius: 14,
-            background: "linear-gradient(135deg,#6366f1,#8b5cf6,#ec4899)",
-            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24
-          }}>⚡</div>
-          <div>
-            <div style={{ fontSize: 19, fontWeight: 800, letterSpacing: "-0.02em" }} className="gradient-text">K8sAI Command Center</div>
-            <div style={{ fontSize: 10.5, color: c.textMuted, letterSpacing: "0.12em", fontWeight: 600 }}>AI-POWERED KUBERNETES OPS</div>
-          </div>
+    <div style={{ height: 48, background: t.bgInset, borderBottom: `1px solid ${t.border}`, display: "flex", alignItems: "center", padding: "0 16px", position: "sticky", top: 0, zIndex: 100 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, paddingRight: 16, borderRight: `1px solid ${t.border}`, height: "100%" }}>
+        <div style={{ width: 26, height: 26, borderRadius: 5, background: `linear-gradient(135deg,${t.accent},${t.purple})`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Zap size={15} color="#fff" strokeWidth={2.5} fill="#fff" />
         </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {[
-            { label: "Total Pods", value: total, icon: "📦", color: c.blue },
-            { label: "Running", value: running, icon: "🟢", color: c.green },
-            { label: "Issues", value: issues, icon: "⚡", color: c.amber },
-          ].map(s => (
-            <div key={s.label} style={{
-              display: "flex", alignItems: "center", gap: 11, padding: "10px 16px", borderRadius: 14,
-              background: `linear-gradient(135deg,${s.color}15,transparent)`, border: `1px solid ${s.color}25`
-            }}>
-              <div style={{ fontSize: 18 }}>{s.icon}</div>
-              <div>
-                <div style={{ fontSize: 9.5, color: c.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>{s.label}</div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: s.color, lineHeight: 1 }}>{s.value}</div>
-              </div>
-            </div>
-          ))}
-
-          <button onClick={() => setDark(!dark)} style={{
-            width: 44, height: 44, borderRadius: 13, border: `1px solid ${c.border}`, cursor: "pointer",
-            background: dark ? "linear-gradient(135deg,#fbbf24,#f59e0b)" : "linear-gradient(135deg,#6366f1,#8b5cf6)",
-            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontFamily: "inherit",
-            boxShadow: dark ? "0 4px 16px rgba(245,158,11,0.4)" : "0 4px 16px rgba(99,102,241,0.4)", transition: "all 0.3s"
-          }} title={dark ? "Switch to light mode" : "Switch to dark mode"}>{dark ? "☀️" : "🌙"}</button>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 14, paddingLeft: 18, marginLeft: 4, borderLeft: `1px solid ${c.border}` }}>
-            <div style={{ position: "relative", width: 56, height: 56 }}>
-              <svg width="56" height="56" style={{ transform: "rotate(-90deg)" }}>
-                <circle cx="28" cy="28" r={r} strokeWidth="4" stroke="rgba(255,255,255,0.06)" fill="none" />
-                <circle cx="28" cy="28" r={r} strokeWidth="4" stroke={hc} fill="none"
-                  strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
-                  style={{ transition: "stroke-dashoffset 0.8s ease", filter: `drop-shadow(0 0 6px ${hc})` }} />
-              </svg>
-              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontSize: 16, fontWeight: 800, color: hc }}>{health}</span>
-              </div>
-            </div>
-            <div>
-              <div style={{ fontSize: 10, color: c.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>Health</div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: hc }}>{health >= 80 ? "Healthy" : health >= 60 ? "Warning" : "Critical"}</div>
-            </div>
-          </div>
+        <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>K8sAI Command Center</span>
+          <span style={{ fontSize: 10, color: t.textSubtle, letterSpacing: "0.04em" }}>PRODUCTION · MINIKUBE</span>
         </div>
       </div>
-    </header>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: 16 }}>
+        <Tag color={t.green} dot>cluster healthy</Tag>
+        <Tag color={t.textMuted}>26/26 tests</Tag>
+      </div>
+
+      <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <Server size={13} color={t.textMuted} />
+          <span style={{ fontSize: 12, color: t.textMuted }}>{total} pods</span>
+          <span style={{ fontSize: 12, color: t.green }}>· {running} running</span>
+          {issues > 0 && <span style={{ fontSize: 12, color: t.amber }}>· {issues} warn</span>}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, paddingLeft: 16, borderLeft: `1px solid ${t.border}` }}>
+          <div style={{ width: 7, height: 7, borderRadius: "50%", background: hc, boxShadow: `0 0 0 3px ${hc}22` }} />
+          <span style={{ fontSize: 12, color: t.textMuted }}>health</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: hc, fontVariantNumeric: "tabular-nums" }}>{health}</span>
+        </div>
+      </div>
+    </div>
   )
 }
 
 // ============ SIDEBAR ============
 const Sidebar = ({ tab, setTab }) => {
-  const items = [
-    { id: "chat", label: "AI Chat", icon: "💬", theme: themes.chat, badge: "NEW" },
-    { id: "pods", label: "Cluster Pods", icon: "📦", theme: themes.pods },
-    { id: "generate", label: "Manifest Gen", icon: "✨", theme: themes.generate },
-    { id: "predict", label: "Predictions", icon: "🔮", theme: themes.predict },
-    { id: "remediate", label: "Auto-Remediate", icon: "🔧", theme: themes.remediate },
-    { id: "arch", label: "Architecture", icon: "🏗️", theme: themes.arch },
+  const nav = [
+    { section: "Operate", items: [
+      { id: "chat", label: "AI Console", icon: MessageSquare },
+      { id: "pods", label: "Workloads", icon: Box },
+      { id: "remediate", label: "Remediation", icon: Wrench },
+    ]},
+    { section: "Analyze", items: [
+      { id: "predict", label: "Predictions", icon: TrendingUp },
+      { id: "generate", label: "Manifest Studio", icon: Sparkles },
+    ]},
+    { section: "System", items: [
+      { id: "arch", label: "Architecture", icon: Network },
+    ]},
   ]
   return (
-    <aside style={{
-      width: 232, flexShrink: 0, borderRight: `1px solid ${c.border}`,
-      background: "rgba(15,20,35,0.5)", backdropFilter: "blur(24px)",
-      position: "sticky", top: 76, height: "calc(100vh - 76px)", overflowY: "auto", padding: "16px 12px"
-    }}>
-      <div style={{ fontSize: 9.5, color: c.textMuted, textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 800, padding: "8px 14px" }}>Workspace</div>
-      {items.map(item => {
-        const active = tab === item.id
-        return (
-          <button key={item.id} onClick={() => setTab(item.id)} style={{
-            width: "100%", display: "flex", alignItems: "center", gap: 12,
-            padding: "12px 14px", borderRadius: 14, border: "none", marginBottom: 4,
-            background: active ? item.theme.grad : "transparent",
-            color: active ? "#fff" : c.textMuted,
-            cursor: "pointer", fontSize: 13.5, fontWeight: active ? 700 : 500,
-            fontFamily: "inherit", transition: "all 0.2s",
-            boxShadow: active ? `0 6px 24px ${item.theme.glow}` : "none",
-          }}
-            onMouseEnter={e => { if (!active) { e.currentTarget.style.background = item.theme.bg; e.currentTarget.style.color = item.theme.light } }}
-            onMouseLeave={e => { if (!active) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = c.textMuted } }}>
-            <span style={{ fontSize: 17 }}>{item.icon}</span>
-            <span style={{ flex: 1, textAlign: "left" }}>{item.label}</span>
-            {item.badge && <span style={{ fontSize: 9, fontWeight: 800, padding: "2px 7px", borderRadius: 10, background: active ? "rgba(255,255,255,0.25)" : "linear-gradient(135deg,#ec4899,#f43f5e)", color: "#fff" }}>{item.badge}</span>}
-          </button>
-        )
-      })}
+    <aside style={{ width: 216, flexShrink: 0, background: t.bgInset, borderRight: `1px solid ${t.border}`, position: "sticky", top: 48, height: "calc(100vh - 48px)", overflowY: "auto", padding: "12px 8px" }}>
+      {nav.map(group => (
+        <div key={group.section} style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 10.5, color: t.textSubtle, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", padding: "4px 10px 6px" }}>{group.section}</div>
+          {group.items.map(item => {
+            const active = tab === item.id
+            const Icon = item.icon
+            return (
+              <button key={item.id} onClick={() => setTab(item.id)} style={{
+                width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "7px 10px",
+                borderRadius: 6, border: "none", marginBottom: 1, cursor: "pointer",
+                background: active ? t.panelHover : "transparent",
+                color: active ? t.text : t.textMuted,
+                fontSize: 13, fontWeight: active ? 500 : 400, fontFamily: "inherit",
+                borderLeft: active ? `2px solid ${t.accent}` : "2px solid transparent",
+                transition: "background 0.1s",
+              }}
+                onMouseEnter={e => { if (!active) e.currentTarget.style.background = t.borderMuted }}
+                onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent" }}>
+                <Icon size={16} strokeWidth={2} color={active ? t.accent : t.textMuted} />
+                {item.label}
+              </button>
+            )
+          })}
+        </div>
+      ))}
 
-      <div style={{ marginTop: 28, padding: 16, borderRadius: 16, background: "linear-gradient(135deg,rgba(99,102,241,0.1),rgba(139,92,246,0.05))", border: `1px solid ${c.border}` }}>
-        <div style={{ fontSize: 9.5, color: c.textMuted, textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 800, marginBottom: 14 }}>System Status</div>
+      <div style={{ marginTop: "auto", padding: "12px 10px", borderTop: `1px solid ${t.borderMuted}`, position: "sticky", bottom: 0, background: t.bgInset }}>
         {[
-          { label: "Cluster", value: "Live", color: c.green, dot: true },
-          { label: "AI Engine", value: "Groq", color: c.cyan },
-          { label: "Tests", value: "26/26 ✓", color: c.green },
-          { label: "Budget", value: "₹0 spent", color: c.green },
-          { label: "Features", value: "17 built", color: c.purple },
-        ].map(row => (
-          <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, marginBottom: 11 }}>
-            <span style={{ color: c.textMuted }}>{row.label}</span>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              {row.dot && <div className="pulse" style={{ width: 7, height: 7, borderRadius: "50%", background: row.color, boxShadow: `0 0 8px ${row.color}` }} />}
-              <span style={{ color: row.color, fontWeight: 700 }}>{row.value}</span>
-            </div>
+          { label: "AI Engine", value: "Groq" },
+          { label: "GitOps", value: "Argo CD" },
+          { label: "Budget", value: "₹0 / ₹2.5k" },
+        ].map(r => (
+          <div key={r.label} style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, marginBottom: 6 }}>
+            <span style={{ color: t.textSubtle }}>{r.label}</span>
+            <span style={{ color: t.textMuted, fontWeight: 500 }}>{r.value}</span>
           </div>
         ))}
       </div>
@@ -245,75 +203,105 @@ const Sidebar = ({ tab, setTab }) => {
   )
 }
 
-// ============ POD CARD ============
-const PodCard = ({ pod, index }) => {
+// ============ WORKLOADS (dense table like Datadog) ============
+const Workloads = ({ pods, loading }) => {
+  const [nsFilter, setNsFilter] = useState("all")
+  const [search, setSearch] = useState("")
+  const [selected, setSelected] = useState(null)
   const [analysis, setAnalysis] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [open, setOpen] = useState(false)
-  const isRunning = pod.status === "Running"
-  const t = themes.pods
+  const [analyzing, setAnalyzing] = useState(false)
 
-  const troubleshoot = async () => {
-    setLoading(true); setOpen(true)
+  const namespaces = [...new Set(pods.map(p => p.namespace))]
+  let filtered = nsFilter === "all" ? pods : pods.filter(p => p.namespace === nsFilter)
+  if (search) filtered = filtered.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
+
+  const troubleshoot = async (pod) => {
+    setSelected(pod.name); setAnalysis(null); setAnalyzing(true)
     try {
       const res = await axios.post(`${API}/api/troubleshoot`, { pod_name: pod.name, namespace: pod.namespace })
       setAnalysis(res.data.analysis)
     } catch { setAnalysis("Error fetching analysis") }
-    setLoading(false)
+    setAnalyzing(false)
   }
-  const rc = pod.restarts > 10 ? c.red : pod.restarts > 3 ? c.amber : c.green
 
   return (
-    <div className="slideIn" style={{
-      background: c.card, border: `1px solid ${c.border}`, borderRadius: 18, padding: 18,
-      position: "relative", overflow: "hidden", animationDelay: `${index * 0.03}s`,
-      transition: "all 0.3s", cursor: "default"
-    }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = t.glow; e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = `0 12px 40px ${t.glow}` }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = c.border; e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none" }}>
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: isRunning ? "linear-gradient(90deg,#10b981,#34d399)" : "linear-gradient(90deg,#f43f5e,#fb7185)" }} />
+    <div className="fadeIn">
+      <PageHead icon={Box} title="Workloads" subtitle={`${filtered.length} of ${pods.length} pods · live from Kubernetes API`}
+        right={
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div style={{ position: "relative" }}>
+              <Search size={14} color={t.textMuted} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)" }} />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search pods…"
+                style={{ background: t.bgInset, border: `1px solid ${t.border}`, borderRadius: 6, padding: "6px 10px 6px 32px", fontSize: 12.5, color: t.text, width: 200 }} />
+            </div>
+            <select value={nsFilter} onChange={e => setNsFilter(e.target.value)}
+              style={{ background: t.bgInset, border: `1px solid ${t.border}`, borderRadius: 6, padding: "6px 10px", fontSize: 12.5, color: t.text, cursor: "pointer" }}>
+              <option value="all">All namespaces</option>
+              {namespaces.map(ns => <option key={ns} value={ns}>{ns}</option>)}
+            </select>
+          </div>
+        } />
 
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-        <div className={isRunning ? "pulse" : ""} style={{ width: 9, height: 9, borderRadius: "50%", background: isRunning ? c.green : c.red, boxShadow: `0 0 10px ${isRunning ? c.green : c.red}` }} />
-        <Pill color={isRunning ? c.green : c.red}>{pod.status}</Pill>
-      </div>
-
-      <div style={{ fontSize: 13.5, fontWeight: 600, color: c.text, marginBottom: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={pod.name}>{pod.name}</div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
-        <div style={{ padding: "10px 12px", borderRadius: 12, background: "rgba(139,92,246,0.06)", border: "1px solid rgba(139,92,246,0.15)" }}>
-          <div style={{ fontSize: 9, color: c.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>Namespace</div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: t.light, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pod.namespace}</div>
-        </div>
-        <div style={{ padding: "10px 12px", borderRadius: 12, background: `${rc}0f`, border: `1px solid ${rc}25` }}>
-          <div style={{ fontSize: 9, color: c.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>Restarts</div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: rc, marginTop: 1 }}>{pod.restarts}</div>
-        </div>
-      </div>
-
-      {pod.restarts > 3 && (
-        <Btn onClick={troubleshoot} disabled={loading} gradient={t.grad} style={{ width: "100%", padding: "9px", fontSize: 12.5 }}>
-          {loading ? <><Spinner /> Analyzing…</> : <>🤖 AI Troubleshoot</>}
-        </Btn>
-      )}
-
-      {open && analysis && (
-        <div className="slideIn" style={{ marginTop: 12, padding: 14, borderRadius: 14, background: "rgba(139,92,246,0.06)", border: "1px solid rgba(139,92,246,0.25)" }}>
-          <div style={{ fontSize: 10, color: t.light, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 800, marginBottom: 8, display: "flex", alignItems: "center", gap: 5 }}>🤖 AI Diagnosis</div>
-          <div style={{ fontSize: 11.5, color: c.textDim, whiteSpace: "pre-wrap", lineHeight: 1.65, maxHeight: 220, overflowY: "auto" }}>{analysis}</div>
-        </div>
+      {loading ? (
+        <Panel style={{ padding: 48, textAlign: "center" }}><Spinner /><div style={{ fontSize: 12.5, color: t.textMuted, marginTop: 10 }}>Loading workloads…</div></Panel>
+      ) : (
+        <Panel style={{ overflow: "hidden" }}>
+          {/* Table header */}
+          <div style={{ display: "grid", gridTemplateColumns: "16px 1fr 140px 90px 90px 120px", gap: 12, padding: "8px 16px", background: t.bgInset, borderBottom: `1px solid ${t.border}`, fontSize: 11, color: t.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            <span></span><span>Pod</span><span>Namespace</span><span>Status</span><span>Restarts</span><span></span>
+          </div>
+          {/* Rows */}
+          <div style={{ maxHeight: "calc(100vh - 260px)", overflowY: "auto" }}>
+            {filtered.map((pod, i) => {
+              const sc = statusColor(pod.status)
+              const rc = pod.restarts > 10 ? t.red : pod.restarts > 3 ? t.amber : t.textMuted
+              const isSel = selected === pod.name
+              return (
+                <div key={pod.name}>
+                  <div style={{
+                    display: "grid", gridTemplateColumns: "16px 1fr 140px 90px 90px 120px", gap: 12, padding: "9px 16px",
+                    borderBottom: `1px solid ${t.borderMuted}`, fontSize: 13, alignItems: "center",
+                    background: isSel ? t.panelHover : "transparent", transition: "background 0.1s"
+                  }}
+                    onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = t.bgElevated }}
+                    onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = "transparent" }}>
+                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: sc }} title={pod.status} />
+                    <span style={{ color: t.text, fontWeight: 450, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "var(--mono)", fontSize: 12.5 }}>{pod.name}</span>
+                    <span style={{ color: t.textMuted, fontSize: 12.5 }}>{pod.namespace}</span>
+                    <span><Tag color={sc}>{pod.status}</Tag></span>
+                    <span style={{ color: rc, fontVariantNumeric: "tabular-nums", fontWeight: pod.restarts > 3 ? 600 : 400 }}>{pod.restarts}</span>
+                    <span>
+                      {pod.restarts > 3 && (
+                        <button onClick={() => troubleshoot(pod)} disabled={analyzing && isSel}
+                          style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "transparent", border: `1px solid ${t.border}`, borderRadius: 5, padding: "3px 9px", fontSize: 11.5, color: t.accent, cursor: "pointer", fontFamily: "inherit" }}>
+                          {analyzing && isSel ? <Spinner size={11} color={t.accent} /> : <Bot size={12} />}
+                          Diagnose
+                        </button>
+                      )}
+                    </span>
+                  </div>
+                  {isSel && analysis && (
+                    <div className="fadeIn" style={{ padding: "14px 16px 16px 44px", background: t.bgInset, borderBottom: `1px solid ${t.border}` }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                        <Bot size={13} color={t.purple} />
+                        <span style={{ fontSize: 11, color: t.purple, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>AI Diagnosis · Groq</span>
+                      </div>
+                      <div style={{ fontSize: 12.5, color: t.textMuted, whiteSpace: "pre-wrap", lineHeight: 1.65, maxHeight: 280, overflowY: "auto", fontFamily: "var(--font)" }}>{analysis}</div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </Panel>
       )}
     </div>
   )
 }
 
-// ============ NLP CHAT ============
-const NLPChat = () => {
-  const t = themes.chat
-  const [messages, setMessages] = useState([{
-    role: "assistant",
-    content: "Hey! 👋 I'm your Kubernetes AI assistant. Just tell me what you want — in plain English.\n\n✨ Try these:\n•  Show me all pods in monitoring namespace\n•  Deploy a redis cache with 2 replicas\n•  Scale nginx-app to 3 replicas\n•  What's the status of flask-backend?"
-  }])
+// ============ AI CONSOLE (chat) ============
+const AIConsole = () => {
+  const [messages, setMessages] = useState([{ role: "assistant", content: "K8sAI console ready. Enter a command in natural language.\n\nExamples:\n  show pods in monitoring namespace\n  deploy redis cache with 2 replicas\n  scale nginx-app to 3 replicas\n  status of flask-backend" }])
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
   const bottomRef = useRef(null)
@@ -329,80 +317,66 @@ const NLPChat = () => {
       const r = res.data.result, parsed = res.data.parsed
       let resp = ""
       if (r.action === "STATUS") {
-        resp = `📊 Found ${r.pods?.length || 0} pods:\n\n`
-        r.pods?.slice(0, 12).forEach(p => { resp += `•  ${p.name}\n    ${p.namespace} · ${p.status} · ${p.restarts} restarts\n` })
-        if ((r.pods?.length || 0) > 12) resp += `\n…and ${r.pods.length - 12} more`
+        resp = `${r.pods?.length || 0} pods matched\n\n`
+        r.pods?.slice(0, 14).forEach(p => { resp += `${p.status === "Running" ? "●" : "○"} ${p.name}  ·  ${p.namespace}  ·  ${p.restarts} restarts\n` })
+        if ((r.pods?.length || 0) > 14) resp += `\n… ${r.pods.length - 14} more`
       } else if (r.action === "DEPLOY") {
-        resp = r.valid ? `✅ Manifest generated for ${parsed.app_name}!\n\n📦 Type: ${parsed.workload_type}\n🖼️ Image: ${parsed.image}\n🔢 Replicas: ${parsed.replicas}\n\nReady to deploy!` : `❌ Could not generate valid manifest`
+        resp = r.valid ? `✓ Manifest generated · ${parsed.app_name}\n  workload: ${parsed.workload_type}\n  image: ${parsed.image}\n  replicas: ${parsed.replicas}\n  status: valid, ready to apply` : `✗ Invalid manifest generated`
       } else if (r.action === "SCALE") {
-        resp = r.success ? `✅ Scaled ${parsed.app_name} to ${parsed.replicas} replicas!\n\n\`${r.command}\`` : `❌ ${r.message}`
+        resp = r.success ? `✓ Scaled ${parsed.app_name} → ${parsed.replicas} replicas\n  $ ${r.command}` : `✗ ${r.message}`
       } else if (r.action === "TROUBLESHOOT") {
-        resp = `🔍 Analysis for ${r.pod}:\n\n${r.message}`
-      } else { resp = r.message || "Done!" }
+        resp = `Diagnosis · ${r.pod}\n\n${r.message}`
+      } else { resp = r.message || "Command executed." }
       setMessages(p => [...p, { role: "assistant", content: resp }])
-    } catch { setMessages(p => [...p, { role: "assistant", content: "❌ Connection error. Is the backend running?" }]) }
+    } catch { setMessages(p => [...p, { role: "assistant", content: "✗ Backend connection failed." }]) }
     setLoading(false)
   }
-
-  const sugg = ["Show all pods in monitoring", "Deploy redis with 2 replicas", "Scale nginx-app to 3 replicas", "Status of flask-backend"]
+  const sugg = ["show pods in monitoring", "deploy redis with 2 replicas", "scale nginx-app to 3 replicas", "status of flask-backend"]
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 160px)" }}>
-      <SectionTitle theme={t} icon="💬" title="Natural Language Control" subtitle="Talk to your Kubernetes cluster like a human — powered by Groq AI" />
-      <GlowCard theme={t} style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        <div style={{ flex: 1, overflowY: "auto", padding: 26, display: "flex", flexDirection: "column", gap: 18 }}>
+    <div className="fadeIn" style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 112px)" }}>
+      <PageHead icon={Terminal} title="AI Console" subtitle="Natural language cluster control · Groq LLM" />
+      <Panel style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: t.bgInset }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: 16, fontFamily: "var(--mono)", fontSize: 12.5 }}>
           {messages.map((m, i) => (
-            <div key={i} className="slideIn" style={{ display: "flex", gap: 12, justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
-              {m.role === "assistant" && <div style={{ width: 38, height: 38, borderRadius: 12, background: t.grad, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 18, boxShadow: `0 4px 16px ${t.glow}` }}>🤖</div>}
-              <div style={{
-                maxWidth: "72%", padding: "14px 18px", borderRadius: 18, fontSize: 13.5, lineHeight: 1.65,
-                background: m.role === "user" ? t.grad : "rgba(255,255,255,0.04)",
-                color: m.role === "user" ? "#fff" : c.textDim,
-                border: m.role === "user" ? "none" : `1px solid ${c.border}`,
-                borderTopRightRadius: m.role === "user" ? 5 : 18, borderTopLeftRadius: m.role === "assistant" ? 5 : 18,
-                whiteSpace: "pre-wrap", boxShadow: m.role === "user" ? `0 4px 20px ${t.glow}` : "none"
-              }}>{m.content}</div>
-              {m.role === "user" && <div style={{ width: 38, height: 38, borderRadius: 12, background: "linear-gradient(135deg,#f59e0b,#f43f5e)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 14, fontWeight: 800, color: "#fff" }}>S</div>}
+            <div key={i} style={{ marginBottom: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                {m.role === "user"
+                  ? <span style={{ color: t.green, fontWeight: 600 }}>❯ you</span>
+                  : <span style={{ color: t.accent, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}><Bot size={12} /> k8sai</span>}
+              </div>
+              <div style={{ color: m.role === "user" ? t.text : t.textMuted, whiteSpace: "pre-wrap", lineHeight: 1.7, paddingLeft: 14, borderLeft: `2px solid ${m.role === "user" ? t.greenDim : t.borderMuted}` }}>{m.content}</div>
             </div>
           ))}
           {loading && (
-            <div style={{ display: "flex", gap: 12 }}>
-              <div style={{ width: 38, height: 38, borderRadius: 12, background: t.grad, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🤖</div>
-              <div style={{ padding: "16px 20px", borderRadius: 18, borderTopLeftRadius: 5, background: "rgba(255,255,255,0.04)", border: `1px solid ${c.border}`, display: "flex", gap: 6, alignItems: "center" }}>
-                {[0, 200, 400].map(d => <div key={d} style={{ width: 9, height: 9, borderRadius: "50%", background: t.light, animation: `bounce 1s ease-in-out ${d}ms infinite` }} />)}
-              </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, color: t.textMuted, paddingLeft: 14 }}>
+              <Spinner size={12} color={t.accent} /> processing…
             </div>
           )}
           <div ref={bottomRef} />
         </div>
-        <div style={{ borderTop: `1px solid ${c.border}`, padding: 18 }}>
-          <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+        <div style={{ borderTop: `1px solid ${t.border}`, padding: 12, background: t.panel }}>
+          <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
             {sugg.map(s => (
-              <button key={s} onClick={() => setInput(s)} style={{
-                padding: "7px 14px", borderRadius: 20, fontSize: 11.5, cursor: "pointer", fontWeight: 600,
-                background: t.bg, border: `1px solid ${t.solid}30`, color: t.light, fontFamily: "inherit", transition: "all 0.2s"
-              }}
-                onMouseEnter={e => { e.target.style.background = t.grad; e.target.style.color = "#fff" }}
-                onMouseLeave={e => { e.target.style.background = t.bg; e.target.style.color = t.light }}>{s}</button>
+              <button key={s} onClick={() => setInput(s)}
+                style={{ padding: "4px 10px", borderRadius: 5, fontSize: 11.5, cursor: "pointer", background: t.bgElevated, border: `1px solid ${t.border}`, color: t.textMuted, fontFamily: "var(--mono)" }}>{s}</button>
             ))}
           </div>
-          <div style={{ display: "flex", gap: 10 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", background: t.bgInset, border: `1px solid ${t.border}`, borderRadius: 6, padding: "2px 2px 2px 12px" }}>
+            <span style={{ color: t.green, fontFamily: "var(--mono)", fontSize: 13 }}>❯</span>
             <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && !loading && send()}
-              placeholder="Ask anything about your cluster…"
-              style={{ flex: 1, padding: "14px 18px", borderRadius: 14, background: "rgba(10,14,26,0.8)", border: `1px solid ${c.border}`, color: c.text, fontSize: 13.5, fontFamily: "inherit", outline: "none", transition: "border-color 0.2s" }}
-              onFocus={e => e.target.style.borderColor = t.solid}
-              onBlur={e => e.target.style.borderColor = c.border} />
-            <Btn onClick={send} disabled={loading || !input.trim()} gradient={t.grad}>➤</Btn>
+              placeholder="enter command…"
+              style={{ flex: 1, background: "transparent", border: "none", color: t.text, fontSize: 13, fontFamily: "var(--mono)", padding: "8px 0" }} />
+            <Btn variant="primary" size="sm" onClick={send} disabled={loading || !input.trim()}><Send size={13} /> Run</Btn>
           </div>
         </div>
-      </GlowCard>
+      </Panel>
     </div>
   )
 }
 
-// ============ MANIFEST GENERATOR ============
-const ManifestGenerator = () => {
-  const t = themes.generate
+// ============ MANIFEST STUDIO ============
+const ManifestStudio = () => {
   const [form, setForm] = useState({ workload_type: "Deployment", app_name: "", image: "", replicas: 1, cpu_limit: "100m", memory_limit: "128Mi", port: 80 })
   const [manifest, setManifest] = useState(null)
   const [valid, setValid] = useState(null)
@@ -416,128 +390,133 @@ const ManifestGenerator = () => {
       setManifest(res.data.manifest); setValid(res.data.valid)
       const cr = await axios.post(`${API}/api/estimate-cost`, form)
       setCost(cr.data)
-    } catch { setManifest("Error") }
+    } catch { setManifest("Error generating manifest") }
     setLoading(false)
   }
 
-  const fs = { width: "100%", padding: "11px 14px", borderRadius: 12, background: "rgba(10,14,26,0.8)", border: `1px solid ${c.border}`, color: c.text, fontSize: 13, fontFamily: "inherit", outline: "none", boxSizing: "border-box", transition: "border-color 0.2s" }
+  const fs = { width: "100%", padding: "7px 10px", borderRadius: 6, background: t.bgInset, border: `1px solid ${t.border}`, color: t.text, fontSize: 12.5, fontFamily: "inherit", boxSizing: "border-box" }
+  const lb = { display: "block", fontSize: 11, color: t.textMuted, marginBottom: 5, fontWeight: 500 }
 
   return (
-    <div>
-      <SectionTitle theme={t} icon="✨" title="AI Manifest Generator" subtitle="Describe your workload — Gemini writes production YAML + estimates cloud cost" />
-      <GlowCard theme={t} style={{ padding: 26, marginBottom: 20 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
-          {[
-            { label: "Workload Type", type: "select", key: "workload_type", opts: ["Deployment","StatefulSet","Job","CronJob"] },
-            { label: "App Name", key: "app_name", ph: "my-app" },
-            { label: "Container Image", key: "image", ph: "nginx:latest" },
-            { label: "Replicas", key: "replicas", type: "number" },
-            { label: "CPU Limit", key: "cpu_limit", ph: "100m" },
-            { label: "Memory Limit", key: "memory_limit", ph: "128Mi" },
-            { label: "Port", key: "port", type: "number" },
-          ].map(f => (
-            <div key={f.key}>
-              <label style={{ display: "block", fontSize: 10, color: t.light, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 7, fontWeight: 700 }}>{f.label}</label>
-              {f.type === "select"
-                ? <select style={fs} value={form[f.key]} onChange={e => setForm({...form, [f.key]: e.target.value})} onFocus={e => e.target.style.borderColor = t.solid} onBlur={e => e.target.style.borderColor = c.border}>{f.opts.map(o => <option key={o}>{o}</option>)}</select>
-                : <input style={fs} type={f.type || "text"} placeholder={f.ph} value={form[f.key]} onChange={e => setForm({...form, [f.key]: f.type === "number" ? parseInt(e.target.value) || 1 : e.target.value})} onFocus={e => e.target.style.borderColor = t.solid} onBlur={e => e.target.style.borderColor = c.border} />}
-            </div>
-          ))}
-          <div style={{ display: "flex", alignItems: "flex-end" }}>
-            <Btn onClick={generate} disabled={loading} gradient={t.grad} style={{ width: "100%", padding: "11px" }}>
-              {loading ? <><Spinner /> Generating…</> : <>✨ Generate + Cost</>}
+    <div className="fadeIn">
+      <PageHead icon={Sparkles} title="Manifest Studio" subtitle="Generate production Kubernetes YAML with Gemini + cost analysis" />
+      <div style={{ display: "grid", gridTemplateColumns: "340px 1fr", gap: 16, alignItems: "start" }}>
+        {/* Left: form */}
+        <Panel pad={16}>
+          <div style={{ fontSize: 12, color: t.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 14 }}>Configuration</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div><label style={lb}>Workload Type</label>
+              <select style={fs} value={form.workload_type} onChange={e => setForm({...form, workload_type: e.target.value})}>
+                <option>Deployment</option><option>StatefulSet</option><option>Job</option><option>CronJob</option>
+              </select></div>
+            {[["App Name","app_name","my-app"],["Container Image","image","nginx:latest"],["Replicas","replicas","",true],["CPU Limit","cpu_limit","100m"],["Memory Limit","memory_limit","128Mi"],["Port","port","",true]].map(([label, key, ph, num]) => (
+              <div key={key}><label style={lb}>{label}</label>
+                <input style={fs} type={num ? "number" : "text"} placeholder={ph} value={form[key]} onChange={e => setForm({...form, [key]: num ? parseInt(e.target.value) || 1 : e.target.value})} /></div>
+            ))}
+            <Btn variant="primary" onClick={generate} disabled={loading} style={{ marginTop: 4 }}>
+              {loading ? <><Spinner size={13} color="#fff" /> Generating…</> : <><Sparkles size={14} /> Generate Manifest</>}
             </Btn>
           </div>
-        </div>
-      </GlowCard>
+        </Panel>
 
-      {manifest && (
-        <GlowCard theme={t} style={{ overflow: "hidden", marginBottom: 18 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 22px", borderBottom: `1px solid ${c.border}`, background: t.bg }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 14, fontWeight: 700, color: c.text }}>📋 Generated Manifest</div>
-            <Pill color={valid ? c.green : c.red}>{valid ? "✅ Valid YAML" : "❌ Invalid"}</Pill>
-          </div>
-          <pre style={{ padding: 22, fontSize: 12, color: c.textDim, fontFamily: "'Fira Code',monospace", overflowX: "auto", maxHeight: 420, lineHeight: 1.7, margin: 0 }}>{manifest}</pre>
-        </GlowCard>
-      )}
-
-      {cost && (
-        <GlowCard theme={themes.remediate} style={{ padding: 26 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 22 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              <div className="float" style={{ width: 48, height: 48, borderRadius: 14, background: "linear-gradient(135deg,#10b981,#059669)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, boxShadow: "0 8px 28px rgba(16,185,129,0.4)" }}>💰</div>
-              <div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: c.text }}>Monthly Cost Estimate</div>
-                <div style={{ fontSize: 12, color: c.textMuted }}>AKS India Region · Pay-as-you-go</div>
+        {/* Right: output */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {!manifest && !loading && (
+            <Panel style={{ padding: 48, textAlign: "center" }}>
+              <Terminal size={28} color={t.textSubtle} strokeWidth={1.5} style={{ margin: "0 auto 12px" }} />
+              <div style={{ fontSize: 13, color: t.textMuted }}>Configure a workload and generate to preview the manifest</div>
+            </Panel>
+          )}
+          {manifest && (
+            <Panel style={{ overflow: "hidden" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", borderBottom: `1px solid ${t.border}`, background: t.bgInset }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <Terminal size={14} color={t.textMuted} />
+                  <span style={{ fontSize: 12.5, fontWeight: 500, color: t.text, fontFamily: "var(--mono)" }}>manifest.yaml</span>
+                </div>
+                {valid ? <Tag color={t.green} dot>validated</Tag> : <Tag color={t.red} dot>invalid</Tag>}
               </div>
-            </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 32, fontWeight: 800, background: "linear-gradient(135deg,#10b981,#34d399)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>₹{cost.cost_breakdown?.total_monthly_inr}</div>
-              <div style={{ fontSize: 12, color: c.textMuted }}>≈ ${cost.cost_breakdown?.total_monthly_usd}/mo USD</div>
-            </div>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 18 }}>
-            <Tile label="CPU Cost" value={`₹${cost.cost_breakdown?.cpu_cost_inr}`} sub={`${cost.cost_breakdown?.cpu_cores} cores`} icon="⚙️" color={c.blue} />
-            <Tile label="Memory" value={`₹${cost.cost_breakdown?.memory_cost_inr}`} sub={`${cost.cost_breakdown?.memory_gb} GB`} icon="🧠" color={c.purple} />
-            <Tile label="Storage" value={`₹${cost.cost_breakdown?.storage_cost_inr}`} sub="Volumes" icon="💾" color={c.cyan} />
-            <Tile label="USD/mo" value={`$${cost.cost_breakdown?.total_monthly_usd}`} sub="Monthly" icon="💵" color={c.green} />
-          </div>
-          <div style={{ padding: 18, borderRadius: 14, background: "linear-gradient(135deg,rgba(236,72,153,0.08),rgba(168,85,247,0.04))", border: "1px solid rgba(236,72,153,0.2)" }}>
-            <div style={{ fontSize: 11, color: c.pink, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 800, marginBottom: 9 }}>🤖 AI FinOps Advice</div>
-            <p style={{ fontSize: 12.5, color: c.textDim, lineHeight: 1.75, whiteSpace: "pre-wrap", margin: 0 }}>{cost.ai_advice}</p>
-          </div>
-        </GlowCard>
-      )}
+              <pre style={{ padding: 16, fontSize: 12, color: t.textMuted, fontFamily: "var(--mono)", overflowX: "auto", maxHeight: 340, lineHeight: 1.65, margin: 0 }}>{manifest}</pre>
+            </Panel>
+          )}
+          {cost && (
+            <Panel pad={16}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <DollarSign size={15} color={t.green} />
+                  <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Cost Estimate</span>
+                  <span style={{ fontSize: 11.5, color: t.textSubtle }}>· AKS India</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                  <span style={{ fontSize: 22, fontWeight: 700, color: t.green, fontVariantNumeric: "tabular-nums" }}>₹{cost.cost_breakdown?.total_monthly_inr}</span>
+                  <span style={{ fontSize: 12, color: t.textMuted }}>/mo · ${cost.cost_breakdown?.total_monthly_usd}</span>
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 1, background: t.border, border: `1px solid ${t.border}`, borderRadius: 6, overflow: "hidden", marginBottom: 14 }}>
+                {[["CPU",`₹${cost.cost_breakdown?.cpu_cost_inr}`,`${cost.cost_breakdown?.cpu_cores} cores`],["Memory",`₹${cost.cost_breakdown?.memory_cost_inr}`,`${cost.cost_breakdown?.memory_gb} GB`],["Storage",`₹${cost.cost_breakdown?.storage_cost_inr}`,"volumes"],["USD",`$${cost.cost_breakdown?.total_monthly_usd}`,"monthly"]].map(([l,v,s]) => (
+                  <div key={l} style={{ background: t.panel, padding: "10px 12px" }}>
+                    <div style={{ fontSize: 10.5, color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.04em" }}>{l}</div>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: t.text, marginTop: 2, fontVariantNumeric: "tabular-nums" }}>{v}</div>
+                    <div style={{ fontSize: 10.5, color: t.textSubtle }}>{s}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ padding: 12, borderRadius: 6, background: t.bgInset, border: `1px solid ${t.borderMuted}` }}>
+                <div style={{ fontSize: 11, color: t.purple, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 7, display: "flex", alignItems: "center", gap: 5 }}><Bot size={12} /> FinOps Recommendation</div>
+                <p style={{ fontSize: 12.5, color: t.textMuted, lineHeight: 1.65, whiteSpace: "pre-wrap", margin: 0 }}>{cost.ai_advice}</p>
+              </div>
+            </Panel>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
 
 // ============ PREDICTIONS ============
 const Predictions = () => {
-  const t = themes.predict
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [last, setLast] = useState(null)
-  const fetch = async () => {
+  const run = async () => {
     setLoading(true)
     try { const res = await axios.get(`${API}/api/predict-failures`); setData(res.data); setLast(new Date().toLocaleTimeString()) }
-    catch { setData({ predictions: "Could not fetch" }) }
+    catch { setData({ predictions: "Could not fetch predictions" }) }
     setLoading(false)
   }
   return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <SectionTitle theme={t} icon="🔮" title="Predictive Failure Detection" subtitle="AI analyses live metrics to warn about at-risk pods before they crash" />
-        <Btn onClick={fetch} disabled={loading} gradient={t.grad}>{loading ? <><Spinner /> Analyzing…</> : <>⚡ Analyze Cluster</>}</Btn>
-      </div>
-      {last && <div style={{ fontSize: 12, color: c.textMuted, marginBottom: 18 }}>🔄 Last check: {last}</div>}
+    <div className="fadeIn">
+      <PageHead icon={TrendingUp} title="Predictions" subtitle="AI failure prediction from Prometheus metrics"
+        right={<Btn variant="primary" onClick={run} disabled={loading}>{loading ? <><Spinner size={13} color="#fff" /> Analyzing…</> : <><Activity size={14} /> Run Analysis</>}</Btn>} />
+      {last && <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 14, display: "flex", alignItems: "center", gap: 6 }}><Clock size={12} /> Last run {last}</div>}
       {!data && !loading && (
-        <GlowCard theme={t} style={{ padding: 70, textAlign: "center" }}>
-          <div className="float" style={{ fontSize: 52, marginBottom: 18 }}>🔮</div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: c.text, marginBottom: 8 }}>Ready to predict failures</div>
-          <p style={{ fontSize: 13, color: c.textMuted }}>Click Analyze Cluster to query Prometheus and get AI risk predictions</p>
-        </GlowCard>
+        <Panel style={{ padding: 48, textAlign: "center" }}>
+          <TrendingUp size={28} color={t.textSubtle} strokeWidth={1.5} style={{ margin: "0 auto 12px" }} />
+          <div style={{ fontSize: 13, color: t.textMuted }}>Run analysis to query Prometheus and predict at-risk pods</div>
+        </Panel>
       )}
       {data?.metrics_collected && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 18 }}>
-          <Tile label="CPU Metrics" value={data.metrics_collected.cpu_pods} sub="pods tracked" icon="⚙️" color={c.blue} />
-          <Tile label="Memory Metrics" value={data.metrics_collected.memory_pods} sub="pods tracked" icon="🧠" color={c.purple} />
-          <Tile label="Restart Data" value={data.metrics_collected.restart_counts} sub="entries" icon="🔄" color={c.pink} />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 1, background: t.border, border: `1px solid ${t.border}`, borderRadius: 6, overflow: "hidden", marginBottom: 16 }}>
+          {[[Cpu,"CPU metrics",data.metrics_collected.cpu_pods],[MemoryStick,"Memory metrics",data.metrics_collected.memory_pods],[RotateCw,"Restart data",data.metrics_collected.restart_counts]].map(([Icon,l,v]) => (
+            <div key={l} style={{ background: t.panel, padding: "14px 16px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}><Icon size={13} color={t.textMuted} /><span style={{ fontSize: 11, color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.04em" }}>{l}</span></div>
+              <div style={{ fontSize: 22, fontWeight: 600, color: t.text, fontVariantNumeric: "tabular-nums" }}>{v}</div>
+            </div>
+          ))}
         </div>
       )}
       {data?.predictions && (
-        <GlowCard theme={t} style={{ padding: 26 }}>
-          <div style={{ fontSize: 11, color: t.light, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 800, marginBottom: 14 }}>🤖 AI Risk Analysis</div>
-          <div style={{ fontSize: 13.5, color: c.textDim, whiteSpace: "pre-wrap", lineHeight: 1.75 }}>{data.predictions}</div>
-        </GlowCard>
+        <Panel pad={16}>
+          <div style={{ fontSize: 11, color: t.purple, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}><Bot size={13} /> Risk Analysis</div>
+          <div style={{ fontSize: 13, color: t.textMuted, whiteSpace: "pre-wrap", lineHeight: 1.7 }}>{data.predictions}</div>
+        </Panel>
       )}
     </div>
   )
 }
 
-// ============ AUTO-REMEDIATION ============
-const AutoRemediation = () => {
-  const t = themes.remediate
+// ============ REMEDIATION ============
+const Remediation = () => {
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
   const run = async () => {
@@ -546,73 +525,70 @@ const AutoRemediation = () => {
     catch { setResult({ pods_scanned: 0, remediations: [] }) }
     setLoading(false)
   }
-  const rColor = r => r === "LOW" ? c.green : r === "MEDIUM" ? c.amber : c.red
+  const rc = r => r === "LOW" ? t.green : r === "MEDIUM" ? t.amber : t.red
 
   return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <SectionTitle theme={t} icon="🔧" title="Auto-Remediation" subtitle="AI detects issues, decides the safest fix, executes it — and alerts Teams" />
-        <Btn onClick={run} disabled={loading} gradient="linear-gradient(135deg,#f43f5e,#ef4444)">{loading ? <><Spinner /> Running…</> : <>⚡ Run Auto-Fix</>}</Btn>
-      </div>
+    <div className="fadeIn">
+      <PageHead icon={Wrench} title="Auto-Remediation" subtitle="AI-driven incident response with Teams alerting"
+        right={<Btn variant="danger" onClick={run} disabled={loading}>{loading ? <><Spinner size={13} color={t.red} /> Running…</> : <><Zap size={14} /> Run Remediation</>}</Btn>} />
+
       {!result && !loading && (
-        <GlowCard theme={t} style={{ padding: 70, textAlign: "center" }}>
-          <div className="float" style={{ fontSize: 52, marginBottom: 18 }}>🔧</div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: c.text, marginBottom: 8 }}>Ready to auto-remediate</div>
-          <p style={{ fontSize: 13, color: c.textMuted, maxWidth: 420, margin: "0 auto" }}>AI detects CrashLoopBackOff & high restarts, decides RESTART/SCALE/SKIP by risk, and executes automatically</p>
-        </GlowCard>
+        <Panel style={{ padding: 48, textAlign: "center" }}>
+          <Wrench size={28} color={t.textSubtle} strokeWidth={1.5} style={{ margin: "0 auto 12px" }} />
+          <div style={{ fontSize: 13, color: t.textMuted, maxWidth: 440, margin: "0 auto" }}>Scans for CrashLoopBackOff and high-restart pods, then decides RESTART, SCALE, or SKIP based on risk assessment</div>
+        </Panel>
       )}
+
       {result && (
         <>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 20 }}>
-            <Tile label="Pods Scanned" value={result.pods_scanned || 0} sub="checked" icon="🔍" color={c.blue} />
-            <Tile label="Actions Taken" value={result.remediations?.filter(r => r.ai_decision !== "SKIP").length || 0} sub="executed" icon="⚡" color={c.amber} />
-            <Tile label="Successful" value={result.remediations?.filter(r => r.execution?.success).length || 0} sub="fixed" icon="✅" color={c.green} />
-          </div>
-          {result.remediations?.length === 0 && (
-            <GlowCard theme={t} style={{ padding: 50, textAlign: "center" }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: c.green }}>All pods healthy!</div>
-              <p style={{ fontSize: 13, color: c.textMuted, marginTop: 4 }}>No remediation needed</p>
-            </GlowCard>
-          )}
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            {result.remediations?.map((r, i) => (
-              <div key={i} className="slideIn" style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 18, padding: 22, animationDelay: `${i * 0.05}s`, position: "relative", overflow: "hidden" }}>
-                <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 4, background: rColor(r.risk_level) }} />
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-                  <div style={{ display: "flex", gap: 14, alignItems: "flex-start", flex: 1, minWidth: 0 }}>
-                    <div style={{ width: 44, height: 44, borderRadius: 13, background: `${rColor(r.risk_level)}15`, border: `1px solid ${rColor(r.risk_level)}30`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>
-                      {r.ai_decision === "RESTART" ? "🔄" : r.ai_decision === "SCALE_DOWN_UP" ? "⚖️" : "⏭️"}
-                    </div>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: c.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.pod}</div>
-                      <div style={{ fontSize: 12, color: c.textMuted, marginTop: 3 }}>{r.namespace} · {r.restarts} restarts</div>
-                    </div>
-                  </div>
-                  <Pill color={rColor(r.risk_level)}>{r.risk_level} RISK</Pill>
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 12, marginBottom: 14 }}>
-                  <div style={{ padding: "12px 14px", borderRadius: 12, background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.15)" }}>
-                    <div style={{ fontSize: 9.5, color: c.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700, marginBottom: 5 }}>AI Decision</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: c.blue }}>{r.ai_decision}</div>
-                  </div>
-                  <div style={{ padding: "12px 14px", borderRadius: 12, background: "rgba(255,255,255,0.02)", border: `1px solid ${c.border}` }}>
-                    <div style={{ fontSize: 9.5, color: c.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700, marginBottom: 5 }}>Reasoning</div>
-                    <div style={{ fontSize: 12, color: c.textDim, lineHeight: 1.5 }}>{r.ai_reason}</div>
-                  </div>
-                </div>
-                {r.execution && (
-                  <div style={{ padding: "12px 16px", borderRadius: 12, background: r.execution.success ? "rgba(16,185,129,0.06)" : "rgba(244,63,94,0.06)", border: `1px solid ${r.execution.success ? "rgba(16,185,129,0.25)" : "rgba(244,63,94,0.25)"}` }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: r.execution.command ? 7 : 0 }}>
-                      <span style={{ fontSize: 15 }}>{r.execution.success ? "✅" : "❌"}</span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: r.execution.success ? c.green : c.red }}>{r.execution.success ? "Executed successfully" : "Execution failed"}</span>
-                    </div>
-                    {r.execution.command && <code style={{ fontSize: 11, color: c.textMuted, fontFamily: "'Fira Code',monospace", display: "block", background: "rgba(0,0,0,0.2)", padding: "6px 10px", borderRadius: 8 }}>{r.execution.command}</code>}
-                  </div>
-                )}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 1, background: t.border, border: `1px solid ${t.border}`, borderRadius: 6, overflow: "hidden", marginBottom: 16 }}>
+            {[["Pods scanned",result.pods_scanned || 0,t.text],["Actions taken",result.remediations?.filter(r => r.ai_decision !== "SKIP").length || 0,t.amber],["Successful",result.remediations?.filter(r => r.execution?.success).length || 0,t.green]].map(([l,v,col]) => (
+              <div key={l} style={{ background: t.panel, padding: "14px 16px" }}>
+                <div style={{ fontSize: 11, color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 5 }}>{l}</div>
+                <div style={{ fontSize: 24, fontWeight: 600, color: col, fontVariantNumeric: "tabular-nums" }}>{v}</div>
               </div>
             ))}
           </div>
+
+          {result.remediations?.length === 0 && (
+            <Panel style={{ padding: 40, textAlign: "center" }}>
+              <CheckCircle size={28} color={t.green} strokeWidth={1.5} style={{ margin: "0 auto 10px" }} />
+              <div style={{ fontSize: 13.5, fontWeight: 500, color: t.text }}>All pods healthy — no remediation required</div>
+            </Panel>
+          )}
+
+          {result.remediations?.length > 0 && (
+            <Panel style={{ overflow: "hidden" }}>
+              <div style={{ padding: "9px 16px", background: t.bgInset, borderBottom: `1px solid ${t.border}`, fontSize: 11, color: t.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>Remediation Log · {result.remediations.length} events</div>
+              {result.remediations.map((r, i) => (
+                <div key={i} style={{ padding: "14px 16px", borderBottom: i < result.remediations.length - 1 ? `1px solid ${t.borderMuted}` : "none" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ width: 28, height: 28, borderRadius: 6, background: t.bgElevated, border: `1px solid ${t.border}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        {r.ai_decision === "RESTART" ? <RotateCw size={14} color={t.accent} /> : r.ai_decision === "SCALE_DOWN_UP" ? <Server size={14} color={t.accent} /> : <ChevronRight size={14} color={t.textMuted} />}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: t.text, fontFamily: "var(--mono)" }}>{r.pod}</div>
+                        <div style={{ fontSize: 11.5, color: t.textMuted, marginTop: 1 }}>{r.namespace} · {r.restarts} restarts</div>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <Tag color={t.accent}>{r.ai_decision}</Tag>
+                      <Tag color={rc(r.risk_level)} dot>{r.risk_level}</Tag>
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 12.5, color: t.textMuted, lineHeight: 1.5, marginBottom: r.execution ? 10 : 0, paddingLeft: 38 }}>{r.ai_reason}</div>
+                  {r.execution && (
+                    <div style={{ marginLeft: 38, display: "flex", alignItems: "center", gap: 8, padding: "7px 12px", borderRadius: 6, background: t.bgInset, border: `1px solid ${r.execution.success ? t.greenDim : t.redDim}44` }}>
+                      {r.execution.success ? <CheckCircle size={13} color={t.green} /> : <XCircle size={13} color={t.red} />}
+                      <span style={{ fontSize: 12, color: r.execution.success ? t.green : t.red, fontWeight: 500 }}>{r.execution.success ? "executed" : "failed"}</span>
+                      {r.execution.command && <code style={{ fontSize: 11.5, color: t.textMuted, fontFamily: "var(--mono)" }}>$ {r.execution.command}</code>}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </Panel>
+          )}
         </>
       )}
     </div>
@@ -624,9 +600,6 @@ export default function App() {
   const [pods, setPods] = useState([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState("chat")
-  const [nsFilter, setNsFilter] = useState("all")
-  const [dark, setDark] = useState(true)
-  c = getC(dark)
 
   useEffect(() => {
     const f = () => axios.get(`${API}/api/cluster/pods`).then(res => { setPods(res.data.pods); setLoading(false) }).catch(() => setLoading(false))
@@ -638,49 +611,21 @@ export default function App() {
   const highRestarts = pods.filter(p => p.restarts > 10).length
   const crashed = pods.filter(p => p.status !== "Running").length
   const health = Math.max(0, Math.min(100, 100 - highRestarts * 5 - crashed * 10))
-  const namespaces = [...new Set(pods.map(p => p.namespace))]
-  const filtered = nsFilter === "all" ? pods : pods.filter(p => p.namespace === nsFilter)
 
   return (
-    <div style={{ minHeight: "100vh", background: c.bg, color: c.text, position: "relative" }}>
-      <ClusterBackground dark={dark} />
-      <div style={{ position: "fixed", inset: 0, pointerEvents: "none", overflow: "hidden", zIndex: 0 }}>
-        <div className="float" style={{ position: "absolute", top: -180, left: -120, width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle,rgba(99,102,241,0.15),transparent 70%)", filter: "blur(60px)" }} />
-        <div className="float" style={{ position: "absolute", top: "40%", right: -150, width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle,rgba(236,72,153,0.12),transparent 70%)", filter: "blur(60px)", animationDelay: "2s" }} />
-        <div className="float" style={{ position: "absolute", bottom: -180, left: "40%", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle,rgba(6,182,212,0.12),transparent 70%)", filter: "blur(60px)", animationDelay: "4s" }} />
-      </div>
-
+    <div style={{ minHeight: "100vh", background: t.bg, color: t.text }}>
+      <ClusterBackground dark={true} />
       <div style={{ position: "relative", zIndex: 1 }}>
-        <Header health={health} running={running} total={pods.length} issues={issues} dark={dark} setDark={setDark} />
+        <TopBar health={health} running={running} total={pods.length} issues={issues} />
         <div style={{ display: "flex" }}>
           <Sidebar tab={tab} setTab={setTab} />
-          <main style={{ flex: 1 }}>
-            <div style={{ maxWidth: 1320, margin: "0 auto", padding: 32 }}>
-              {tab === "chat" && <NLPChat />}
-              {tab === "pods" && (
-                <div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <SectionTitle theme={themes.pods} icon="📦" title="Cluster Pods" subtitle={`${filtered.length} pods live · Auto-refreshes every 30s`} />
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      {["all", ...namespaces].map(ns => (
-                        <button key={ns} onClick={() => setNsFilter(ns)} style={{
-                          padding: "8px 16px", borderRadius: 12, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s",
-                          background: nsFilter === ns ? themes.pods.grad : "rgba(255,255,255,0.03)",
-                          color: nsFilter === ns ? "#fff" : c.textMuted,
-                          border: `1px solid ${nsFilter === ns ? "transparent" : c.border}`,
-                          boxShadow: nsFilter === ns ? `0 4px 16px ${themes.pods.glow}` : "none"
-                        }}>{ns}</button>
-                      ))}
-                    </div>
-                  </div>
-                  {loading
-                    ? <GlowCard theme={themes.pods} style={{ padding: 70, textAlign: "center" }}><Spinner color={themes.pods.solid} /><div style={{ fontSize: 13, color: c.textMuted, marginTop: 14 }}>Loading pods…</div></GlowCard>
-                    : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: 16 }}>{filtered.map((pod, i) => <PodCard key={pod.name} pod={pod} index={i} />)}</div>}
-                </div>
-              )}
-              {tab === "generate" && <ManifestGenerator />}
+          <main style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ maxWidth: 1280, margin: "0 auto", padding: "20px 24px" }}>
+              {tab === "chat" && <AIConsole />}
+              {tab === "pods" && <Workloads pods={pods} loading={loading} />}
+              {tab === "generate" && <ManifestStudio />}
               {tab === "predict" && <Predictions />}
-              {tab === "remediate" && <AutoRemediation />}
+              {tab === "remediate" && <Remediation />}
               {tab === "arch" && <Architecture />}
             </div>
           </main>
