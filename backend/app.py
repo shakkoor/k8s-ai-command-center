@@ -144,6 +144,20 @@ def nlp_endpoint():
     except: pass
     return jsonify({'command': command, 'parsed': parsed, 'result': result})
 
+
+@app.route('/api/estimate-cost', methods=['POST'])
+def estimate_cost_endpoint():
+    from cost_estimator import estimate_cost
+    data = request.json
+    result = estimate_cost(
+        app_name=data.get('app_name', 'my-app'),
+        workload_type=data.get('workload_type', 'Deployment'),
+        replicas=data.get('replicas', 1),
+        cpu_limit=data.get('cpu_limit', '100m'),
+        memory_limit=data.get('memory_limit', '128Mi')
+    )
+    return jsonify(result)
+
 if __name__ == '__main__':
     app.run(
         host='0.0.0.0',
