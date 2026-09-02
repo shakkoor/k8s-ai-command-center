@@ -38,15 +38,21 @@ function ManifestGenerator() {
   const [form, setForm] = useState({ workload_type: "Deployment", app_name: "", image: "", replicas: 1, cpu_limit: "100m", memory_limit: "128Mi", port: 80 })
   const [manifest, setManifest] = useState(null)
   const [valid, setValid] = useState(null)
+  const [cost, setCost] = useState(null)
   const [loading, setLoading] = useState(false)
+
   const handleGenerate = async () => {
     setLoading(true)
     try {
       const res = await axios.post(`${API}/api/generate-manifest`, form)
-      setManifest(res.data.manifest); setValid(res.data.valid)
+      setManifest(res.data.manifest)
+      setValid(res.data.valid)
+      const costRes = await axios.post(`${API}/api/estimate-cost`, form)
+      setCost(costRes.data)
     } catch (e) { setManifest("Error") }
     setLoading(false)
   }
+
   return (
     <div style={styles.section}>
       <h2 style={styles.sectionTitle}>🤖 AI Manifest Generator</h2>
@@ -57,11 +63,12 @@ function ManifestGenerator() {
         <input style={styles.input} placeholder="App name" value={form.app_name} onChange={e => setForm({...form, app_name: e.target.value})} />
         <input style={styles.input} placeholder="Container image" value={form.image} onChange={e => setForm({...form, image: e.target.value})} />
         <input style={styles.input} placeholder="Replicas" type="number" value={form.replicas} onChange={e => setForm({...form, replicas: parseInt(e.target.value)})} />
-        <input style={styles.input} placeholder="CPU limit" value={form.cpu_limit} onChange={e => setForm({...form, cpu_limit: e.target.value})} />
-        <input style={styles.input} placeholder="Memory limit" value={form.memory_limit} onChange={e => setForm({...form, memory_limit: e.target.value})} />
+        <input style={styles.input} placeholder="CPU limit (e.g. 100m)" value={form.cpu_limit} onChange={e => setForm({...form, cpu_limit: e.target.value})} />
+        <input style={styles.input} placeholder="Memory limit (e.g. 128Mi)" value={form.memory_limit} onChange={e => setForm({...form, memory_limit: e.target.value})} />
         <input style={styles.input} placeholder="Port" type="number" value={form.port} onChange={e => setForm({...form, port: parseInt(e.target.value)})} />
-        <button style={styles.btn} onClick={handleGenerate} disabled={loading}>{loading ? "Generating..." : "Generate Manifest"}</button>
+        <button style={styles.btn} onClick={handleGenerate} disabled={loading}>{loading ? "Generating..." : "Generate Manifest + Cost"}</button>
       </div>
+
       {manifest && (
         <div style={styles.manifestBox}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
@@ -69,6 +76,27 @@ function ManifestGenerator() {
             <span style={{ color: valid ? "#22c55e" : "#ef4444" }}>{valid ? "✅ Valid" : "❌ Invalid"}</span>
           </div>
           <pre style={styles.code}>{manifest}</pre>
+        </div>
+      )}
+
+      {cost && (
+        <div style={{ background: "#0f172a", borderRadius: 8, padding: 16, border: "1px solid #334155", marginTop: 12 }}>
+          <strong style={{ color: "#38bdf8", fontSize: 14 }}>💰 Estimated Monthly Cost — AKS India Region</strong>
+          <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
+            <div style={{...styles.metricChip, border: "1px solid #22c55e", color: "#22c55e"}}>
+              Total: ₹{cost.cost_breakdown?.total_monthly_inr}/mo
+            </div>
+            <div style={styles.metricChip}>CPU: ₹{cost.cost_breakdown?.cpu_cost_inr}</div>
+            <div style={styles.metricChip}>Memory: ₹{cost.cost_breakdown?.memory_cost_inr}</div>
+            <div style={styles.metricChip}>${cost.cost_breakdown?.total_monthly_usd}/mo USD</div>
+            <div style={styles.metricChip}>Cores: {cost.cost_breakdown?.cpu_cores}</div>
+            <div style={styles.metricChip}>RAM: {cost.cost_breakdown?.memory_gb}GB</div>
+          </div>
+          <div style={{ marginTop: 12, padding: 12, background: "#1e293b", borderRadius: 8 }}>
+            <strong style={{ fontSize: 12, color: "#64748b" }}>🤖 AI Cost Advice:</strong>
+            <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 6, lineHeight: 1.6 }}>{cost.ai_advice}</p>
+          </div>
+          <p style={{ fontSize: 11, color: "#475569", marginTop: 8 }}>{cost.pricing_note}</p>
         </div>
       )}
     </div>
@@ -182,22 +210,16 @@ function NLPChat() {
       let response = ""
       if (result.action === 'STATUS') {
         response = `Found **${result.pods?.length || 0} pods**:\n\n`
-        result.pods?.slice(0, 10).forEach(p => {
-          response += `• ${p.name} (${p.namespace}) — ${p.status} | Restarts: ${p.restarts}\n`
-        })
+        result.pods?.slice(0, 10).forEach(p => { response += `• ${p.name} (${p.namespace}) — ${p.status} | Restarts: ${p.restarts}\n` })
         if ((result.pods?.length || 0) > 10) response += `\n...and ${result.pods.length - 10} more`
       } else if (result.action === 'DEPLOY') {
         response = result.valid
           ? `✅ **Manifest generated for ${parsed.app_name}!**\n\nWorkload: ${parsed.workload_type}\nImage: ${parsed.image}\nReplicas: ${parsed.replicas}\nMemory: ${parsed.memory_limit}\n\nManifest is valid and ready to deploy!`
           : `❌ Could not generate valid manifest: ${result.validation_message}`
       } else if (result.action === 'SCALE') {
-        response = result.success
-          ? `✅ **Scaled ${parsed.app_name} to ${parsed.replicas} replicas!**\n\n\`${result.command}\``
-          : `❌ Scale failed: ${result.message}`
+        response = result.success ? `✅ **Scaled ${parsed.app_name} to ${parsed.replicas} replicas!**\n\n\`${result.command}\`` : `❌ Scale failed: ${result.message}`
       } else if (result.action === 'DELETE') {
-        response = result.success
-          ? `✅ **Deleted ${parsed.app_name}!**\n\n\`${result.command}\``
-          : `❌ Delete failed: ${result.message}`
+        response = result.success ? `✅ **Deleted ${parsed.app_name}!**\n\n\`${result.command}\`` : `❌ Delete failed: ${result.message}`
       } else if (result.action === 'TROUBLESHOOT') {
         response = `🔍 **AI Analysis for ${result.pod}:**\n\n${result.message}`
       } else {
@@ -217,44 +239,30 @@ function NLPChat() {
         <div style={{ flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
           {messages.map((msg, i) => (
             <div key={i} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start" }}>
-              <div style={{
-                maxWidth: "80%", padding: "10px 14px", borderRadius: 10, fontSize: 13, lineHeight: 1.6,
+              <div style={{ maxWidth: "80%", padding: "10px 14px", borderRadius: 10, fontSize: 13, lineHeight: 1.6,
                 background: msg.role === "user" ? "#38bdf8" : "#1e293b",
-                color: msg.role === "user" ? "#0f172a" : "#cbd5e1",
-                whiteSpace: "pre-wrap"
-              }}>
+                color: msg.role === "user" ? "#0f172a" : "#cbd5e1", whiteSpace: "pre-wrap" }}>
                 {msg.content}
               </div>
             </div>
           ))}
           {loading && (
             <div style={{ display: "flex", justifyContent: "flex-start" }}>
-              <div style={{ padding: "10px 14px", borderRadius: 10, background: "#1e293b", color: "#64748b", fontSize: 13 }}>
-                🤖 Thinking...
-              </div>
+              <div style={{ padding: "10px 14px", borderRadius: 10, background: "#1e293b", color: "#64748b", fontSize: 13 }}>🤖 Thinking...</div>
             </div>
           )}
           <div ref={bottomRef} />
         </div>
         <div style={{ padding: 12, borderTop: "1px solid #334155", display: "flex", gap: 8 }}>
-          <input
-            style={{...styles.input, flex: 1, marginBottom: 0}}
-            placeholder="Type a command in plain English..."
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && !loading && sendMessage()}
-          />
-          <button style={{...styles.btn, marginTop: 0, padding: "8px 16px"}} onClick={sendMessage} disabled={loading || !input.trim()}>
-            Send
-          </button>
+          <input style={{...styles.input, flex: 1, marginBottom: 0}} placeholder="Type a command in plain English..."
+            value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && !loading && sendMessage()} />
+          <button style={{...styles.btn, marginTop: 0, padding: "8px 16px"}} onClick={sendMessage} disabled={loading || !input.trim()}>Send</button>
         </div>
       </div>
       <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
         {["Show all pods", "Show pods in monitoring", "Deploy redis with 2 replicas", "Scale nginx-app to 3 replicas"].map(s => (
           <button key={s} style={{ fontSize: 11, padding: "4px 10px", borderRadius: 6, border: "1px solid #334155", background: "transparent", color: "#64748b", cursor: "pointer" }}
-            onClick={() => { setInput(s) }}>
-            {s}
-          </button>
+            onClick={() => setInput(s)}>{s}</button>
         ))}
       </div>
     </div>
@@ -262,7 +270,6 @@ function NLPChat() {
 }
 
 function HealthScore({ pods }) {
-  const running = pods.filter(p => p.status === "Running").length
   const highRestarts = pods.filter(p => p.restarts > 10).length
   const crashed = pods.filter(p => p.status !== "Running").length
   let score = 100
@@ -312,7 +319,7 @@ export default function App() {
         <HealthScore pods={pods} />
       </div>
       <div style={styles.tabs}>
-        {[["chat","🗣️ Chat"], ["pods","Cluster Pods"], ["generate","AI Generator"], ["predict","🔮 Predictions"], ["remediate","🛠️ Auto-Fix"]].map(([id, label]) => (
+        {[["chat","🗣️ Chat"], ["pods","Cluster Pods"], ["generate","💰 AI Generator"], ["predict","🔮 Predictions"], ["remediate","🛠️ Auto-Fix"]].map(([id, label]) => (
           <button key={id} style={{...styles.tab, ...(tab===id?styles.activeTab:{})}} onClick={() => setTab(id)}>{label}</button>
         ))}
       </div>
