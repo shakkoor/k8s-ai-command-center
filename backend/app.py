@@ -102,8 +102,8 @@ def predict_failures_endpoint():
 @app.route('/api/remediate', methods=['POST'])
 def remediate_endpoint():
     start = time.time()
-    from remediator import run_auto_remediation
-    result = run_auto_remediation()
+    from remediator import run_auto_remediation, run_auto_remediation_with_alerts
+    result = run_auto_remediation_with_alerts()
     try:
         from audit_logger import log_action
         log_action('auto_remediate', resource_type='Cluster', status='success',
