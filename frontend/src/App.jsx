@@ -1,101 +1,182 @@
 import { useState, useEffect, useRef } from "react"
 import axios from "axios"
-import { motion, AnimatePresence } from "framer-motion"
-import {
-  Activity, Boxes, Bot, Sparkles, TrendingUp, Wrench, MessageSquare,
-  Cpu, HardDrive, RefreshCw, AlertTriangle, CheckCircle2, XCircle,
-  Send, Zap, Shield, DollarSign, Network, PlayCircle,
-  Server, Database, Cloud, GitBranch, Bell, Terminal, Layers, ArrowRight
-} from "lucide-react"
 import Architecture from "./Architecture.jsx"
+import ClusterBackground from "./ClusterBackground.jsx"
 
 const API = "http://172.27.46.159:5000"
 
-const Card = ({ children, className = "", ...props }) => (
-  <div className={`rounded-2xl bg-slate-900/40 backdrop-blur-xl border border-white/[0.06] ${className}`} {...props}>
-    {children}
-  </div>
+// ============ VIBRANT THEME SYSTEM ============
+// Each feature gets its own gradient identity
+const themes = {
+  chat:     { grad: "linear-gradient(135deg,#3b82f6,#06b6d4)", glow: "rgba(59,130,246,0.4)", solid: "#3b82f6", light: "#60a5fa", bg: "rgba(59,130,246,0.08)" },
+  pods:     { grad: "linear-gradient(135deg,#8b5cf6,#d946ef)", glow: "rgba(139,92,246,0.4)", solid: "#8b5cf6", light: "#a78bfa", bg: "rgba(139,92,246,0.08)" },
+  generate: { grad: "linear-gradient(135deg,#f59e0b,#f43f5e)", glow: "rgba(245,158,11,0.4)", solid: "#f59e0b", light: "#fbbf24", bg: "rgba(245,158,11,0.08)" },
+  predict:  { grad: "linear-gradient(135deg,#ec4899,#a855f7)", glow: "rgba(236,72,153,0.4)", solid: "#ec4899", light: "#f472b6", bg: "rgba(236,72,153,0.08)" },
+  remediate:{ grad: "linear-gradient(135deg,#10b981,#059669)", glow: "rgba(16,185,129,0.4)", solid: "#10b981", light: "#34d399", bg: "rgba(16,185,129,0.08)" },
+  arch:     { grad: "linear-gradient(135deg,#06b6d4,#3b82f6)", glow: "rgba(6,182,212,0.4)", solid: "#06b6d4", light: "#22d3ee", bg: "rgba(6,182,212,0.08)" },
+}
+
+let DARK = true
+const themeColors = {
+  dark: {
+    bg: "#0a0e1a", card: "rgba(20,27,45,0.7)", cardSolid: "#141b2d",
+    border: "rgba(255,255,255,0.08)", text: "#f8fafc", textMuted: "#8b95a9", textDim: "#c3cad9",
+    inputBg: "rgba(10,14,26,0.8)",
+  },
+  light: {
+    bg: "#f1f5f9", card: "rgba(255,255,255,0.85)", cardSolid: "#ffffff",
+    border: "rgba(15,23,42,0.1)", text: "#0f172a", textMuted: "#64748b", textDim: "#334155",
+    inputBg: "rgba(255,255,255,0.9)",
+  }
+}
+const accents = { green: "#10b981", red: "#f43f5e", amber: "#f59e0b", blue: "#3b82f6", purple: "#8b5cf6", pink: "#ec4899", cyan: "#06b6d4" }
+const getC = (dark) => ({ ...themeColors[dark ? "dark" : "light"], ...accents })
+let c = getC(true)
+
+// ============ BASE COMPONENTS ============
+const Spinner = ({ color = "#fff" }) => (
+  <div className="spin" style={{ width: 15, height: 15, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.2)", borderTopColor: color }} />
 )
 
-const Button = ({ children, variant = "primary", size = "md", className = "", ...props }) => {
-  const base = "inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
-  const sizes = { sm: "px-3 py-1.5 text-xs", md: "px-4 py-2 text-sm", lg: "px-5 py-2.5 text-sm" }
-  const variants = {
-    primary: "bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white shadow-lg shadow-sky-500/25",
-    danger: "bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-400 hover:to-red-500 text-white shadow-lg shadow-rose-500/25",
-    ghost: "bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10",
-  }
-  return <button className={`${base} ${sizes[size]} ${variants[variant]} ${className}`} {...props}>{children}</button>
+const GlowCard = ({ children, theme, style = {}, hover = false }) => {
+  const [h, setH] = useState(false)
+  return (
+    <div
+      onMouseEnter={() => hover && setH(true)}
+      onMouseLeave={() => hover && setH(false)}
+      style={{
+        background: c.card,
+        border: `1px solid ${h ? theme?.glow || c.border : c.border}`,
+        borderRadius: 20,
+        backdropFilter: "blur(24px)",
+        boxShadow: h ? `0 12px 48px ${theme?.glow || "rgba(0,0,0,0.3)"}` : "0 4px 24px rgba(0,0,0,0.2)",
+        transition: "all 0.3s cubic-bezier(0.4,0,0.2,1)",
+        transform: h ? "translateY(-2px)" : "none",
+        ...style
+      }}>{children}</div>
+  )
 }
 
-const Badge = ({ children, color = "sky" }) => {
-  const colors = {
-    green: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-    red: "bg-rose-500/10 text-rose-400 border-rose-500/20",
-    yellow: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-    sky: "bg-sky-500/10 text-sky-400 border-sky-500/20",
-    purple: "bg-purple-500/10 text-purple-400 border-purple-500/20",
-    slate: "bg-slate-500/10 text-slate-400 border-slate-500/20",
-  }
-  return <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium border ${colors[color]}`}>{children}</span>
+const Btn = ({ children, onClick, disabled, gradient, style = {} }) => {
+  const [h, setH] = useState(false)
+  return (
+    <button onClick={onClick} disabled={disabled}
+      onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
+      style={{
+        display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
+        padding: "11px 22px", borderRadius: 14, border: "none",
+        fontSize: 13.5, fontWeight: 600, cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.5 : 1, fontFamily: "inherit", color: "#fff",
+        background: gradient || "linear-gradient(135deg,#6366f1,#8b5cf6)",
+        boxShadow: h && !disabled ? "0 8px 30px rgba(99,102,241,0.5)" : "0 4px 16px rgba(99,102,241,0.3)",
+        transform: h && !disabled ? "translateY(-2px) scale(1.02)" : "none",
+        transition: "all 0.2s", ...style
+      }}>{children}</button>
+  )
 }
 
-const Spinner = () => <div className="inline-block w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+const Pill = ({ children, color }) => (
+  <span style={{
+    display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 11px",
+    borderRadius: 20, fontSize: 11, fontWeight: 700, letterSpacing: "0.02em",
+    background: `${color}20`, color, border: `1px solid ${color}40`
+  }}>{children}</span>
+)
 
-const StatChip = ({ icon: Icon, label, value, color }) => (
-  <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-    <div className={`w-8 h-8 rounded-lg bg-${color}-500/10 flex items-center justify-center`}>
-      <Icon className={`w-4 h-4 text-${color}-400`} />
-    </div>
+const SectionTitle = ({ theme, icon, title, subtitle }) => (
+  <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 28 }}>
+    <div className="float" style={{
+      width: 54, height: 54, borderRadius: 16, background: theme.grad,
+      display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26,
+      boxShadow: `0 8px 32px ${theme.glow}`
+    }}>{icon}</div>
     <div>
-      <div className="text-[10px] text-slate-500 uppercase tracking-wider">{label}</div>
-      <div className="text-sm font-semibold text-white leading-tight">{value}</div>
+      <h2 style={{ fontSize: 22, fontWeight: 800, color: c.text, margin: 0, letterSpacing: "-0.02em" }}>{title}</h2>
+      <p style={{ fontSize: 13, color: c.textMuted, margin: 0, marginTop: 3 }}>{subtitle}</p>
     </div>
   </div>
 )
 
-const Header = ({ health, running, total, issues }) => {
-  const healthColor = health >= 80 ? "emerald" : health >= 60 ? "amber" : "rose"
-  const arc = (health / 100) * 251.2
+const Tile = ({ label, value, sub, icon, color }) => (
+  <div style={{
+    padding: "16px 18px", borderRadius: 16, position: "relative", overflow: "hidden",
+    background: `linear-gradient(135deg,${color}12,transparent)`,
+    border: `1px solid ${color}25`
+  }}>
+    <div style={{ position: "absolute", top: -20, right: -20, width: 70, height: 70, borderRadius: "50%", background: `${color}15`, filter: "blur(20px)" }} />
+    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, position: "relative" }}>
+      <span style={{ fontSize: 15 }}>{icon}</span>
+      <span style={{ fontSize: 10.5, color: c.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700 }}>{label}</span>
+    </div>
+    <div style={{ fontSize: 22, fontWeight: 800, color, position: "relative", letterSpacing: "-0.02em" }}>{value}</div>
+    <div style={{ fontSize: 11, color: c.textMuted, marginTop: 2 }}>{sub}</div>
+  </div>
+)
+
+// ============ HEADER ============
+const Header = ({ health, running, total, issues, dark, setDark }) => {
+  const hc = health >= 80 ? c.green : health >= 60 ? c.amber : c.red
+  const r = 22, circ = 2 * Math.PI * r, offset = circ - (health / 100) * circ
 
   return (
-    <header className="relative overflow-hidden border-b border-white/5 bg-slate-950/60 backdrop-blur-2xl sticky top-0 z-50">
-      <div className="absolute inset-0 bg-gradient-to-r from-sky-500/[0.03] via-purple-500/[0.03] to-transparent" />
-      <div className="max-w-[1600px] mx-auto px-6 py-4 relative">
-        <div className="flex items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center shadow-lg shadow-sky-500/30">
-              <Zap className="w-6 h-6 text-white" strokeWidth={2.5} />
+    <header style={{
+      position: "sticky", top: 0, zIndex: 100,
+      background: "rgba(10,14,26,0.8)", backdropFilter: "blur(24px)",
+      borderBottom: `1px solid ${c.border}`, padding: "0 28px"
+    }}>
+      <div style={{ maxWidth: 1440, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 76 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 15 }}>
+          <div className="glow" style={{
+            width: 46, height: 46, borderRadius: 14,
+            background: "linear-gradient(135deg,#6366f1,#8b5cf6,#ec4899)",
+            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24
+          }}>⚡</div>
+          <div>
+            <div style={{ fontSize: 19, fontWeight: 800, letterSpacing: "-0.02em" }} className="gradient-text">K8sAI Command Center</div>
+            <div style={{ fontSize: 10.5, color: c.textMuted, letterSpacing: "0.12em", fontWeight: 600 }}>AI-POWERED KUBERNETES OPS</div>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {[
+            { label: "Total Pods", value: total, icon: "📦", color: c.blue },
+            { label: "Running", value: running, icon: "🟢", color: c.green },
+            { label: "Issues", value: issues, icon: "⚡", color: c.amber },
+          ].map(s => (
+            <div key={s.label} style={{
+              display: "flex", alignItems: "center", gap: 11, padding: "10px 16px", borderRadius: 14,
+              background: `linear-gradient(135deg,${s.color}15,transparent)`, border: `1px solid ${s.color}25`
+            }}>
+              <div style={{ fontSize: 18 }}>{s.icon}</div>
+              <div>
+                <div style={{ fontSize: 9.5, color: c.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>{s.label}</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: s.color, lineHeight: 1 }}>{s.value}</div>
+              </div>
+            </div>
+          ))}
+
+          <button onClick={() => setDark(!dark)} style={{
+            width: 44, height: 44, borderRadius: 13, border: `1px solid ${c.border}`, cursor: "pointer",
+            background: dark ? "linear-gradient(135deg,#fbbf24,#f59e0b)" : "linear-gradient(135deg,#6366f1,#8b5cf6)",
+            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontFamily: "inherit",
+            boxShadow: dark ? "0 4px 16px rgba(245,158,11,0.4)" : "0 4px 16px rgba(99,102,241,0.4)", transition: "all 0.3s"
+          }} title={dark ? "Switch to light mode" : "Switch to dark mode"}>{dark ? "☀️" : "🌙"}</button>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 14, paddingLeft: 18, marginLeft: 4, borderLeft: `1px solid ${c.border}` }}>
+            <div style={{ position: "relative", width: 56, height: 56 }}>
+              <svg width="56" height="56" style={{ transform: "rotate(-90deg)" }}>
+                <circle cx="28" cy="28" r={r} strokeWidth="4" stroke="rgba(255,255,255,0.06)" fill="none" />
+                <circle cx="28" cy="28" r={r} strokeWidth="4" stroke={hc} fill="none"
+                  strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
+                  style={{ transition: "stroke-dashoffset 0.8s ease", filter: `drop-shadow(0 0 6px ${hc})` }} />
+              </svg>
+              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontSize: 16, fontWeight: 800, color: hc }}>{health}</span>
+              </div>
             </div>
             <div>
-              <h1 className="text-lg font-semibold text-white tracking-tight">K8sAI Command Center</h1>
-              <p className="text-[11px] text-slate-500 tracking-wide">AI-POWERED KUBERNETES OPS</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <StatChip icon={Boxes} label="Pods" value={total} color="slate" />
-            <StatChip icon={CheckCircle2} label="Running" value={running} color="emerald" />
-            <StatChip icon={AlertTriangle} label="Issues" value={issues} color="amber" />
-
-            <div className="flex items-center gap-3 pl-4 border-l border-white/10">
-              <div className="relative w-14 h-14">
-                <svg className="w-14 h-14 -rotate-90">
-                  <circle cx="28" cy="28" r="24" strokeWidth="4" className="stroke-white/5" fill="none" />
-                  <circle cx="28" cy="28" r="24" strokeWidth="4" fill="none"
-                    className={`stroke-${healthColor}-400 transition-all duration-700`}
-                    strokeDasharray={251.2} strokeDashoffset={251.2 - arc} strokeLinecap="round" />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className={`text-sm font-bold text-${healthColor}-400`}>{health}</span>
-                </div>
-              </div>
-              <div>
-                <div className="text-[10px] text-slate-500 uppercase tracking-wider">Health</div>
-                <div className={`text-sm font-semibold text-${healthColor}-400`}>
-                  {health >= 80 ? "Healthy" : health >= 60 ? "Warning" : "Critical"}
-                </div>
-              </div>
+              <div style={{ fontSize: 10, color: c.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>Health</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: hc }}>{health >= 80 ? "Healthy" : health >= 60 ? "Warning" : "Critical"}</div>
             </div>
           </div>
         </div>
@@ -104,101 +185,73 @@ const Header = ({ health, running, total, issues }) => {
   )
 }
 
+// ============ SIDEBAR ============
 const Sidebar = ({ tab, setTab }) => {
   const items = [
-    { id: "chat", label: "AI Chat", icon: MessageSquare, badge: "NEW" },
-    { id: "pods", label: "Cluster Pods", icon: Boxes },
-    { id: "generate", label: "Manifest Gen", icon: Sparkles },
-    { id: "predict", label: "Predictions", icon: TrendingUp },
-    { id: "remediate", label: "Auto-Remediate", icon: Wrench },
-    { id: "arch", label: "Architecture", icon: Network },
+    { id: "chat", label: "AI Chat", icon: "💬", theme: themes.chat, badge: "NEW" },
+    { id: "pods", label: "Cluster Pods", icon: "📦", theme: themes.pods },
+    { id: "generate", label: "Manifest Gen", icon: "✨", theme: themes.generate },
+    { id: "predict", label: "Predictions", icon: "🔮", theme: themes.predict },
+    { id: "remediate", label: "Auto-Remediate", icon: "🔧", theme: themes.remediate },
+    { id: "arch", label: "Architecture", icon: "🏗️", theme: themes.arch },
   ]
-
   return (
-    <aside className="w-56 shrink-0 border-r border-white/5 bg-slate-950/40 backdrop-blur-xl sticky top-[73px] h-[calc(100vh-73px)] overflow-y-auto">
-      <nav className="p-3 space-y-1">
-        <div className="text-[10px] text-slate-600 uppercase tracking-widest font-semibold px-3 py-2">Workspace</div>
-        {items.map(item => {
-          const active = tab === item.id
-          const Icon = item.icon
-          return (
-            <button key={item.id} onClick={() => setTab(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all group relative ${
-                active ? "bg-gradient-to-r from-sky-500/20 to-blue-500/10 text-white border border-sky-500/20"
-                       : "text-slate-400 hover:text-white hover:bg-white/[0.03]"
-              }`}>
-              {active && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-sky-400 rounded-r" />}
-              <Icon className={`w-4 h-4 ${active ? "text-sky-400" : ""}`} />
-              <span className="flex-1 text-left">{item.label}</span>
-              {item.badge && <Badge color="purple">{item.badge}</Badge>}
-            </button>
-          )
-        })}
-        <div className="pt-6">
-          <div className="text-[10px] text-slate-600 uppercase tracking-widest font-semibold px-3 py-2">System</div>
-          <div className="px-3 py-2 space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-500">Cluster</span>
-              <div className="flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-emerald-400">Live</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-500">AI Model</span>
-              <span className="text-slate-300">Groq</span>
-            </div>
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-500">Tests</span>
-              <span className="text-emerald-400">26/26</span>
+    <aside style={{
+      width: 232, flexShrink: 0, borderRight: `1px solid ${c.border}`,
+      background: "rgba(15,20,35,0.5)", backdropFilter: "blur(24px)",
+      position: "sticky", top: 76, height: "calc(100vh - 76px)", overflowY: "auto", padding: "16px 12px"
+    }}>
+      <div style={{ fontSize: 9.5, color: c.textMuted, textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 800, padding: "8px 14px" }}>Workspace</div>
+      {items.map(item => {
+        const active = tab === item.id
+        return (
+          <button key={item.id} onClick={() => setTab(item.id)} style={{
+            width: "100%", display: "flex", alignItems: "center", gap: 12,
+            padding: "12px 14px", borderRadius: 14, border: "none", marginBottom: 4,
+            background: active ? item.theme.grad : "transparent",
+            color: active ? "#fff" : c.textMuted,
+            cursor: "pointer", fontSize: 13.5, fontWeight: active ? 700 : 500,
+            fontFamily: "inherit", transition: "all 0.2s",
+            boxShadow: active ? `0 6px 24px ${item.theme.glow}` : "none",
+          }}
+            onMouseEnter={e => { if (!active) { e.currentTarget.style.background = item.theme.bg; e.currentTarget.style.color = item.theme.light } }}
+            onMouseLeave={e => { if (!active) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = c.textMuted } }}>
+            <span style={{ fontSize: 17 }}>{item.icon}</span>
+            <span style={{ flex: 1, textAlign: "left" }}>{item.label}</span>
+            {item.badge && <span style={{ fontSize: 9, fontWeight: 800, padding: "2px 7px", borderRadius: 10, background: active ? "rgba(255,255,255,0.25)" : "linear-gradient(135deg,#ec4899,#f43f5e)", color: "#fff" }}>{item.badge}</span>}
+          </button>
+        )
+      })}
+
+      <div style={{ marginTop: 28, padding: 16, borderRadius: 16, background: "linear-gradient(135deg,rgba(99,102,241,0.1),rgba(139,92,246,0.05))", border: `1px solid ${c.border}` }}>
+        <div style={{ fontSize: 9.5, color: c.textMuted, textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 800, marginBottom: 14 }}>System Status</div>
+        {[
+          { label: "Cluster", value: "Live", color: c.green, dot: true },
+          { label: "AI Engine", value: "Groq", color: c.cyan },
+          { label: "Tests", value: "26/26 ✓", color: c.green },
+          { label: "Budget", value: "₹0 spent", color: c.green },
+          { label: "Features", value: "17 built", color: c.purple },
+        ].map(row => (
+          <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, marginBottom: 11 }}>
+            <span style={{ color: c.textMuted }}>{row.label}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              {row.dot && <div className="pulse" style={{ width: 7, height: 7, borderRadius: "50%", background: row.color, boxShadow: `0 0 8px ${row.color}` }} />}
+              <span style={{ color: row.color, fontWeight: 700 }}>{row.value}</span>
             </div>
           </div>
-        </div>
-      </nav>
+        ))}
+      </div>
     </aside>
   )
 }
 
-const Field = ({ label, children }) => (
-  <div>
-    <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">{label}</label>
-    {children}
-  </div>
-)
-
-const Input = (props) => (
-  <input className="w-full px-3 py-2.5 rounded-lg bg-slate-950/60 border border-white/10 text-sm text-white placeholder:text-slate-600 focus:border-sky-500/50 focus:outline-none focus:ring-2 focus:ring-sky-500/20 transition-all" {...props} />
-)
-
-const MetricTile = ({ label, value, sub, icon: Icon }) => (
-  <div className="p-3 rounded-lg bg-white/[0.02] border border-white/5">
-    <div className="flex items-center gap-1.5 mb-1.5">
-      <Icon className="w-3 h-3 text-slate-500" />
-      <span className="text-[10px] text-slate-500 uppercase tracking-wider">{label}</span>
-    </div>
-    <div className="text-sm font-semibold text-white">{value}</div>
-    <div className="text-[10px] text-slate-500">{sub}</div>
-  </div>
-)
-
-const SectionHeader = ({ icon: Icon, title, subtitle }) => (
-  <div className="flex items-center gap-3">
-    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500/20 to-blue-500/10 border border-sky-500/20 flex items-center justify-center">
-      <Icon className="w-5 h-5 text-sky-400" />
-    </div>
-    <div>
-      <h2 className="text-lg font-semibold text-white tracking-tight">{title}</h2>
-      <p className="text-xs text-slate-500">{subtitle}</p>
-    </div>
-  </div>
-)
-
-const PodCard = ({ pod }) => {
+// ============ POD CARD ============
+const PodCard = ({ pod, index }) => {
   const [analysis, setAnalysis] = useState(null)
   const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
   const isRunning = pod.status === "Running"
-  const isProblematic = pod.restarts > 3
+  const t = themes.pods
 
   const troubleshoot = async () => {
     setLoading(true); setOpen(true)
@@ -208,54 +261,148 @@ const PodCard = ({ pod }) => {
     } catch { setAnalysis("Error fetching analysis") }
     setLoading(false)
   }
+  const rc = pod.restarts > 10 ? c.red : pod.restarts > 3 ? c.amber : c.green
 
   return (
-    <motion.div layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-      className="group relative overflow-hidden rounded-xl bg-white/[0.02] border border-white/[0.06] hover:border-sky-500/30 transition-all">
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-sky-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-      <div className="p-4">
-        <div className="flex items-start justify-between gap-2 mb-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <div className={`w-2 h-2 rounded-full ${isRunning ? "bg-emerald-400" : "bg-rose-400"} ${isRunning ? "animate-pulse" : ""}`} />
-              <Badge color={isRunning ? "green" : "red"}>{pod.status}</Badge>
-            </div>
-            <div className="text-sm font-medium text-white truncate" title={pod.name}>{pod.name}</div>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-2 mb-3">
-          <div className="px-2.5 py-2 rounded-lg bg-white/[0.03] border border-white/5">
-            <div className="text-[10px] text-slate-500 uppercase tracking-wider">Namespace</div>
-            <div className="text-xs text-slate-300 font-medium truncate">{pod.namespace}</div>
-          </div>
-          <div className="px-2.5 py-2 rounded-lg bg-white/[0.03] border border-white/5">
-            <div className="text-[10px] text-slate-500 uppercase tracking-wider">Restarts</div>
-            <div className={`text-xs font-semibold ${pod.restarts > 10 ? "text-rose-400" : pod.restarts > 3 ? "text-amber-400" : "text-slate-300"}`}>{pod.restarts}</div>
-          </div>
-        </div>
-        {isProblematic && (
-          <Button size="sm" variant="ghost" className="w-full" onClick={troubleshoot} disabled={loading}>
-            {loading ? <Spinner /> : <Bot className="w-3.5 h-3.5" />}
-            {loading ? "Analyzing…" : "AI Troubleshoot"}
-          </Button>
-        )}
-        <AnimatePresence>
-          {open && analysis && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
-              className="mt-3 p-3 rounded-lg bg-slate-950/60 border border-purple-500/20 overflow-hidden">
-              <div className="flex items-center gap-1.5 mb-2 text-[10px] text-purple-400 uppercase tracking-wider font-semibold">
-                <Bot className="w-3 h-3" /> AI Analysis
-              </div>
-              <div className="text-xs text-slate-300 whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto">{analysis}</div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+    <div className="slideIn" style={{
+      background: c.card, border: `1px solid ${c.border}`, borderRadius: 18, padding: 18,
+      position: "relative", overflow: "hidden", animationDelay: `${index * 0.03}s`,
+      transition: "all 0.3s", cursor: "default"
+    }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = t.glow; e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = `0 12px 40px ${t.glow}` }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = c.border; e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none" }}>
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: isRunning ? "linear-gradient(90deg,#10b981,#34d399)" : "linear-gradient(90deg,#f43f5e,#fb7185)" }} />
+
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+        <div className={isRunning ? "pulse" : ""} style={{ width: 9, height: 9, borderRadius: "50%", background: isRunning ? c.green : c.red, boxShadow: `0 0 10px ${isRunning ? c.green : c.red}` }} />
+        <Pill color={isRunning ? c.green : c.red}>{pod.status}</Pill>
       </div>
-    </motion.div>
+
+      <div style={{ fontSize: 13.5, fontWeight: 600, color: c.text, marginBottom: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={pod.name}>{pod.name}</div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+        <div style={{ padding: "10px 12px", borderRadius: 12, background: "rgba(139,92,246,0.06)", border: "1px solid rgba(139,92,246,0.15)" }}>
+          <div style={{ fontSize: 9, color: c.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>Namespace</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: t.light, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pod.namespace}</div>
+        </div>
+        <div style={{ padding: "10px 12px", borderRadius: 12, background: `${rc}0f`, border: `1px solid ${rc}25` }}>
+          <div style={{ fontSize: 9, color: c.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>Restarts</div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: rc, marginTop: 1 }}>{pod.restarts}</div>
+        </div>
+      </div>
+
+      {pod.restarts > 3 && (
+        <Btn onClick={troubleshoot} disabled={loading} gradient={t.grad} style={{ width: "100%", padding: "9px", fontSize: 12.5 }}>
+          {loading ? <><Spinner /> Analyzing…</> : <>🤖 AI Troubleshoot</>}
+        </Btn>
+      )}
+
+      {open && analysis && (
+        <div className="slideIn" style={{ marginTop: 12, padding: 14, borderRadius: 14, background: "rgba(139,92,246,0.06)", border: "1px solid rgba(139,92,246,0.25)" }}>
+          <div style={{ fontSize: 10, color: t.light, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 800, marginBottom: 8, display: "flex", alignItems: "center", gap: 5 }}>🤖 AI Diagnosis</div>
+          <div style={{ fontSize: 11.5, color: c.textDim, whiteSpace: "pre-wrap", lineHeight: 1.65, maxHeight: 220, overflowY: "auto" }}>{analysis}</div>
+        </div>
+      )}
+    </div>
   )
 }
 
+// ============ NLP CHAT ============
+const NLPChat = () => {
+  const t = themes.chat
+  const [messages, setMessages] = useState([{
+    role: "assistant",
+    content: "Hey! 👋 I'm your Kubernetes AI assistant. Just tell me what you want — in plain English.\n\n✨ Try these:\n•  Show me all pods in monitoring namespace\n•  Deploy a redis cache with 2 replicas\n•  Scale nginx-app to 3 replicas\n•  What's the status of flask-backend?"
+  }])
+  const [input, setInput] = useState("")
+  const [loading, setLoading] = useState(false)
+  const bottomRef = useRef(null)
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }) }, [messages, loading])
+
+  const send = async () => {
+    if (!input.trim()) return
+    const um = input.trim(); setInput("")
+    setMessages(p => [...p, { role: "user", content: um }])
+    setLoading(true)
+    try {
+      const res = await axios.post(`${API}/api/nlp`, { command: um })
+      const r = res.data.result, parsed = res.data.parsed
+      let resp = ""
+      if (r.action === "STATUS") {
+        resp = `📊 Found ${r.pods?.length || 0} pods:\n\n`
+        r.pods?.slice(0, 12).forEach(p => { resp += `•  ${p.name}\n    ${p.namespace} · ${p.status} · ${p.restarts} restarts\n` })
+        if ((r.pods?.length || 0) > 12) resp += `\n…and ${r.pods.length - 12} more`
+      } else if (r.action === "DEPLOY") {
+        resp = r.valid ? `✅ Manifest generated for ${parsed.app_name}!\n\n📦 Type: ${parsed.workload_type}\n🖼️ Image: ${parsed.image}\n🔢 Replicas: ${parsed.replicas}\n\nReady to deploy!` : `❌ Could not generate valid manifest`
+      } else if (r.action === "SCALE") {
+        resp = r.success ? `✅ Scaled ${parsed.app_name} to ${parsed.replicas} replicas!\n\n\`${r.command}\`` : `❌ ${r.message}`
+      } else if (r.action === "TROUBLESHOOT") {
+        resp = `🔍 Analysis for ${r.pod}:\n\n${r.message}`
+      } else { resp = r.message || "Done!" }
+      setMessages(p => [...p, { role: "assistant", content: resp }])
+    } catch { setMessages(p => [...p, { role: "assistant", content: "❌ Connection error. Is the backend running?" }]) }
+    setLoading(false)
+  }
+
+  const sugg = ["Show all pods in monitoring", "Deploy redis with 2 replicas", "Scale nginx-app to 3 replicas", "Status of flask-backend"]
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 160px)" }}>
+      <SectionTitle theme={t} icon="💬" title="Natural Language Control" subtitle="Talk to your Kubernetes cluster like a human — powered by Groq AI" />
+      <GlowCard theme={t} style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: 26, display: "flex", flexDirection: "column", gap: 18 }}>
+          {messages.map((m, i) => (
+            <div key={i} className="slideIn" style={{ display: "flex", gap: 12, justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
+              {m.role === "assistant" && <div style={{ width: 38, height: 38, borderRadius: 12, background: t.grad, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 18, boxShadow: `0 4px 16px ${t.glow}` }}>🤖</div>}
+              <div style={{
+                maxWidth: "72%", padding: "14px 18px", borderRadius: 18, fontSize: 13.5, lineHeight: 1.65,
+                background: m.role === "user" ? t.grad : "rgba(255,255,255,0.04)",
+                color: m.role === "user" ? "#fff" : c.textDim,
+                border: m.role === "user" ? "none" : `1px solid ${c.border}`,
+                borderTopRightRadius: m.role === "user" ? 5 : 18, borderTopLeftRadius: m.role === "assistant" ? 5 : 18,
+                whiteSpace: "pre-wrap", boxShadow: m.role === "user" ? `0 4px 20px ${t.glow}` : "none"
+              }}>{m.content}</div>
+              {m.role === "user" && <div style={{ width: 38, height: 38, borderRadius: 12, background: "linear-gradient(135deg,#f59e0b,#f43f5e)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 14, fontWeight: 800, color: "#fff" }}>S</div>}
+            </div>
+          ))}
+          {loading && (
+            <div style={{ display: "flex", gap: 12 }}>
+              <div style={{ width: 38, height: 38, borderRadius: 12, background: t.grad, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🤖</div>
+              <div style={{ padding: "16px 20px", borderRadius: 18, borderTopLeftRadius: 5, background: "rgba(255,255,255,0.04)", border: `1px solid ${c.border}`, display: "flex", gap: 6, alignItems: "center" }}>
+                {[0, 200, 400].map(d => <div key={d} style={{ width: 9, height: 9, borderRadius: "50%", background: t.light, animation: `bounce 1s ease-in-out ${d}ms infinite` }} />)}
+              </div>
+            </div>
+          )}
+          <div ref={bottomRef} />
+        </div>
+        <div style={{ borderTop: `1px solid ${c.border}`, padding: 18 }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+            {sugg.map(s => (
+              <button key={s} onClick={() => setInput(s)} style={{
+                padding: "7px 14px", borderRadius: 20, fontSize: 11.5, cursor: "pointer", fontWeight: 600,
+                background: t.bg, border: `1px solid ${t.solid}30`, color: t.light, fontFamily: "inherit", transition: "all 0.2s"
+              }}
+                onMouseEnter={e => { e.target.style.background = t.grad; e.target.style.color = "#fff" }}
+                onMouseLeave={e => { e.target.style.background = t.bg; e.target.style.color = t.light }}>{s}</button>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && !loading && send()}
+              placeholder="Ask anything about your cluster…"
+              style={{ flex: 1, padding: "14px 18px", borderRadius: 14, background: "rgba(10,14,26,0.8)", border: `1px solid ${c.border}`, color: c.text, fontSize: 13.5, fontFamily: "inherit", outline: "none", transition: "border-color 0.2s" }}
+              onFocus={e => e.target.style.borderColor = t.solid}
+              onBlur={e => e.target.style.borderColor = c.border} />
+            <Btn onClick={send} disabled={loading || !input.trim()} gradient={t.grad}>➤</Btn>
+          </div>
+        </div>
+      </GlowCard>
+    </div>
+  )
+}
+
+// ============ MANIFEST GENERATOR ============
 const ManifestGenerator = () => {
+  const t = themes.generate
   const [form, setForm] = useState({ workload_type: "Deployment", app_name: "", image: "", replicas: 1, cpu_limit: "100m", memory_limit: "128Mi", port: 80 })
   const [manifest, setManifest] = useState(null)
   const [valid, setValid] = useState(null)
@@ -267,228 +414,204 @@ const ManifestGenerator = () => {
     try {
       const res = await axios.post(`${API}/api/generate-manifest`, form)
       setManifest(res.data.manifest); setValid(res.data.valid)
-      const c = await axios.post(`${API}/api/estimate-cost`, form)
-      setCost(c.data)
+      const cr = await axios.post(`${API}/api/estimate-cost`, form)
+      setCost(cr.data)
     } catch { setManifest("Error") }
     setLoading(false)
   }
 
+  const fs = { width: "100%", padding: "11px 14px", borderRadius: 12, background: "rgba(10,14,26,0.8)", border: `1px solid ${c.border}`, color: c.text, fontSize: 13, fontFamily: "inherit", outline: "none", boxSizing: "border-box", transition: "border-color 0.2s" }
+
   return (
-    <div className="space-y-6">
-      <SectionHeader icon={Sparkles} title="AI Manifest Generator" subtitle="Describe your workload · Gemini generates production-ready YAML with cost estimation" />
-      <Card className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Field label="Workload Type">
-            <select className="w-full px-3 py-2.5 rounded-lg bg-slate-950/60 border border-white/10 text-sm text-white focus:border-sky-500/50 focus:outline-none focus:ring-2 focus:ring-sky-500/20 transition-all"
-              value={form.workload_type} onChange={e => setForm({...form, workload_type: e.target.value})}>
-              <option>Deployment</option><option>StatefulSet</option><option>Job</option><option>CronJob</option>
-            </select>
-          </Field>
-          <Field label="App Name"><Input placeholder="my-app" value={form.app_name} onChange={e => setForm({...form, app_name: e.target.value})} /></Field>
-          <Field label="Container Image"><Input placeholder="nginx:latest" value={form.image} onChange={e => setForm({...form, image: e.target.value})} /></Field>
-          <Field label="Replicas"><Input type="number" value={form.replicas} onChange={e => setForm({...form, replicas: parseInt(e.target.value) || 1})} /></Field>
-          <Field label="CPU Limit"><Input placeholder="100m" value={form.cpu_limit} onChange={e => setForm({...form, cpu_limit: e.target.value})} /></Field>
-          <Field label="Memory Limit"><Input placeholder="128Mi" value={form.memory_limit} onChange={e => setForm({...form, memory_limit: e.target.value})} /></Field>
-          <Field label="Port"><Input type="number" value={form.port} onChange={e => setForm({...form, port: parseInt(e.target.value) || 80})} /></Field>
-          <div className="flex items-end">
-            <Button className="w-full" onClick={generate} disabled={loading} size="lg">
-              {loading ? <><Spinner /> Generating…</> : <><Sparkles className="w-4 h-4" /> Generate</>}
-            </Button>
+    <div>
+      <SectionTitle theme={t} icon="✨" title="AI Manifest Generator" subtitle="Describe your workload — Gemini writes production YAML + estimates cloud cost" />
+      <GlowCard theme={t} style={{ padding: 26, marginBottom: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+          {[
+            { label: "Workload Type", type: "select", key: "workload_type", opts: ["Deployment","StatefulSet","Job","CronJob"] },
+            { label: "App Name", key: "app_name", ph: "my-app" },
+            { label: "Container Image", key: "image", ph: "nginx:latest" },
+            { label: "Replicas", key: "replicas", type: "number" },
+            { label: "CPU Limit", key: "cpu_limit", ph: "100m" },
+            { label: "Memory Limit", key: "memory_limit", ph: "128Mi" },
+            { label: "Port", key: "port", type: "number" },
+          ].map(f => (
+            <div key={f.key}>
+              <label style={{ display: "block", fontSize: 10, color: t.light, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 7, fontWeight: 700 }}>{f.label}</label>
+              {f.type === "select"
+                ? <select style={fs} value={form[f.key]} onChange={e => setForm({...form, [f.key]: e.target.value})} onFocus={e => e.target.style.borderColor = t.solid} onBlur={e => e.target.style.borderColor = c.border}>{f.opts.map(o => <option key={o}>{o}</option>)}</select>
+                : <input style={fs} type={f.type || "text"} placeholder={f.ph} value={form[f.key]} onChange={e => setForm({...form, [f.key]: f.type === "number" ? parseInt(e.target.value) || 1 : e.target.value})} onFocus={e => e.target.style.borderColor = t.solid} onBlur={e => e.target.style.borderColor = c.border} />}
+            </div>
+          ))}
+          <div style={{ display: "flex", alignItems: "flex-end" }}>
+            <Btn onClick={generate} disabled={loading} gradient={t.grad} style={{ width: "100%", padding: "11px" }}>
+              {loading ? <><Spinner /> Generating…</> : <>✨ Generate + Cost</>}
+            </Btn>
           </div>
         </div>
-      </Card>
+      </GlowCard>
+
       {manifest && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <Card className="overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
-              <div className="flex items-center gap-2">
-                <Terminal className="w-4 h-4 text-sky-400" />
-                <span className="text-sm font-medium text-white">Generated Manifest</span>
-              </div>
-              <Badge color={valid ? "green" : "red"}>
-                {valid ? <><CheckCircle2 className="w-3 h-3" /> Valid</> : <><XCircle className="w-3 h-3" /> Invalid</>}
-              </Badge>
-            </div>
-            <pre className="p-6 text-xs text-slate-300 font-mono overflow-x-auto max-h-[500px] leading-relaxed">{manifest}</pre>
-          </Card>
-        </motion.div>
+        <GlowCard theme={t} style={{ overflow: "hidden", marginBottom: 18 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 22px", borderBottom: `1px solid ${c.border}`, background: t.bg }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 14, fontWeight: 700, color: c.text }}>📋 Generated Manifest</div>
+            <Pill color={valid ? c.green : c.red}>{valid ? "✅ Valid YAML" : "❌ Invalid"}</Pill>
+          </div>
+          <pre style={{ padding: 22, fontSize: 12, color: c.textDim, fontFamily: "'Fira Code',monospace", overflowX: "auto", maxHeight: 420, lineHeight: 1.7, margin: 0 }}>{manifest}</pre>
+        </GlowCard>
       )}
+
       {cost && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <Card className="p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                <DollarSign className="w-4 h-4 text-emerald-400" />
-              </div>
+        <GlowCard theme={themes.remediate} style={{ padding: 26 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 22 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <div className="float" style={{ width: 48, height: 48, borderRadius: 14, background: "linear-gradient(135deg,#10b981,#059669)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, boxShadow: "0 8px 28px rgba(16,185,129,0.4)" }}>💰</div>
               <div>
-                <div className="text-sm font-semibold text-white">Monthly Cost Estimate</div>
-                <div className="text-[11px] text-slate-500">AKS India Region · Pay-as-you-go</div>
-              </div>
-              <div className="ml-auto text-right">
-                <div className="text-2xl font-bold text-emerald-400">₹{cost.cost_breakdown?.total_monthly_inr}</div>
-                <div className="text-[11px] text-slate-500">≈ ${cost.cost_breakdown?.total_monthly_usd}/mo</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: c.text }}>Monthly Cost Estimate</div>
+                <div style={{ fontSize: 12, color: c.textMuted }}>AKS India Region · Pay-as-you-go</div>
               </div>
             </div>
-            <div className="grid grid-cols-4 gap-3 mb-4">
-              <MetricTile label="CPU Cost" value={`₹${cost.cost_breakdown?.cpu_cost_inr}`} sub={`${cost.cost_breakdown?.cpu_cores} cores`} icon={Cpu} />
-              <MetricTile label="Memory Cost" value={`₹${cost.cost_breakdown?.memory_cost_inr}`} sub={`${cost.cost_breakdown?.memory_gb} GB`} icon={HardDrive} />
-              <MetricTile label="Storage" value={`₹${cost.cost_breakdown?.storage_cost_inr}`} sub="Volumes" icon={Database} />
-              <MetricTile label="Total USD" value={`$${cost.cost_breakdown?.total_monthly_usd}`} sub="Monthly" icon={DollarSign} />
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 32, fontWeight: 800, background: "linear-gradient(135deg,#10b981,#34d399)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>₹{cost.cost_breakdown?.total_monthly_inr}</div>
+              <div style={{ fontSize: 12, color: c.textMuted }}>≈ ${cost.cost_breakdown?.total_monthly_usd}/mo USD</div>
             </div>
-            <div className="p-4 rounded-xl bg-gradient-to-br from-purple-500/[0.08] to-transparent border border-purple-500/20">
-              <div className="flex items-center gap-2 mb-2">
-                <Bot className="w-4 h-4 text-purple-400" />
-                <span className="text-xs font-semibold text-purple-400 uppercase tracking-wider">AI Cost Optimization</span>
-              </div>
-              <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">{cost.ai_advice}</p>
-            </div>
-          </Card>
-        </motion.div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 18 }}>
+            <Tile label="CPU Cost" value={`₹${cost.cost_breakdown?.cpu_cost_inr}`} sub={`${cost.cost_breakdown?.cpu_cores} cores`} icon="⚙️" color={c.blue} />
+            <Tile label="Memory" value={`₹${cost.cost_breakdown?.memory_cost_inr}`} sub={`${cost.cost_breakdown?.memory_gb} GB`} icon="🧠" color={c.purple} />
+            <Tile label="Storage" value={`₹${cost.cost_breakdown?.storage_cost_inr}`} sub="Volumes" icon="💾" color={c.cyan} />
+            <Tile label="USD/mo" value={`$${cost.cost_breakdown?.total_monthly_usd}`} sub="Monthly" icon="💵" color={c.green} />
+          </div>
+          <div style={{ padding: 18, borderRadius: 14, background: "linear-gradient(135deg,rgba(236,72,153,0.08),rgba(168,85,247,0.04))", border: "1px solid rgba(236,72,153,0.2)" }}>
+            <div style={{ fontSize: 11, color: c.pink, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 800, marginBottom: 9 }}>🤖 AI FinOps Advice</div>
+            <p style={{ fontSize: 12.5, color: c.textDim, lineHeight: 1.75, whiteSpace: "pre-wrap", margin: 0 }}>{cost.ai_advice}</p>
+          </div>
+        </GlowCard>
       )}
     </div>
   )
 }
 
+// ============ PREDICTIONS ============
 const Predictions = () => {
+  const t = themes.predict
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [lastChecked, setLastChecked] = useState(null)
-
+  const [last, setLast] = useState(null)
   const fetch = async () => {
     setLoading(true)
-    try {
-      const res = await axios.get(`${API}/api/predict-failures`)
-      setData(res.data); setLastChecked(new Date().toLocaleTimeString())
-    } catch { setData({ predictions: "Could not fetch predictions" }) }
+    try { const res = await axios.get(`${API}/api/predict-failures`); setData(res.data); setLast(new Date().toLocaleTimeString()) }
+    catch { setData({ predictions: "Could not fetch" }) }
     setLoading(false)
   }
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <SectionHeader icon={TrendingUp} title="Predictive Failure Detection" subtitle="AI analyses cluster metrics to warn about at-risk pods before they crash" />
-        <Button onClick={fetch} disabled={loading}>
-          {loading ? <><Spinner /> Analyzing…</> : <><Zap className="w-4 h-4" /> Analyze Cluster</>}
-        </Button>
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <SectionTitle theme={t} icon="🔮" title="Predictive Failure Detection" subtitle="AI analyses live metrics to warn about at-risk pods before they crash" />
+        <Btn onClick={fetch} disabled={loading} gradient={t.grad}>{loading ? <><Spinner /> Analyzing…</> : <>⚡ Analyze Cluster</>}</Btn>
       </div>
-      {lastChecked && <div className="text-xs text-slate-500 flex items-center gap-2"><RefreshCw className="w-3 h-3" /> Last check: {lastChecked}</div>}
+      {last && <div style={{ fontSize: 12, color: c.textMuted, marginBottom: 18 }}>🔄 Last check: {last}</div>}
       {!data && !loading && (
-        <Card className="p-12 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/10 border border-purple-500/20 flex items-center justify-center mx-auto mb-4">
-            <TrendingUp className="w-7 h-7 text-purple-400" />
-          </div>
-          <div className="text-sm font-medium text-white mb-1">Ready to predict failures</div>
-          <p className="text-xs text-slate-500 max-w-sm mx-auto">Click Analyze Cluster to query Prometheus and get AI predictions about which pods are at risk</p>
-        </Card>
+        <GlowCard theme={t} style={{ padding: 70, textAlign: "center" }}>
+          <div className="float" style={{ fontSize: 52, marginBottom: 18 }}>🔮</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: c.text, marginBottom: 8 }}>Ready to predict failures</div>
+          <p style={{ fontSize: 13, color: c.textMuted }}>Click Analyze Cluster to query Prometheus and get AI risk predictions</p>
+        </GlowCard>
       )}
       {data?.metrics_collected && (
-        <div className="grid grid-cols-3 gap-3">
-          <MetricTile label="CPU Metrics" value={data.metrics_collected.cpu_pods} sub="pods tracked" icon={Cpu} />
-          <MetricTile label="Memory Metrics" value={data.metrics_collected.memory_pods} sub="pods tracked" icon={HardDrive} />
-          <MetricTile label="Restart Counts" value={data.metrics_collected.restart_counts} sub="entries" icon={RefreshCw} />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 18 }}>
+          <Tile label="CPU Metrics" value={data.metrics_collected.cpu_pods} sub="pods tracked" icon="⚙️" color={c.blue} />
+          <Tile label="Memory Metrics" value={data.metrics_collected.memory_pods} sub="pods tracked" icon="🧠" color={c.purple} />
+          <Tile label="Restart Data" value={data.metrics_collected.restart_counts} sub="entries" icon="🔄" color={c.pink} />
         </div>
       )}
       {data?.predictions && (
-        <Card className="p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Bot className="w-4 h-4 text-purple-400" />
-            <span className="text-xs font-semibold text-purple-400 uppercase tracking-wider">AI Analysis</span>
-          </div>
-          <div className="text-sm text-slate-300 whitespace-pre-wrap leading-relaxed">{data.predictions}</div>
-        </Card>
+        <GlowCard theme={t} style={{ padding: 26 }}>
+          <div style={{ fontSize: 11, color: t.light, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 800, marginBottom: 14 }}>🤖 AI Risk Analysis</div>
+          <div style={{ fontSize: 13.5, color: c.textDim, whiteSpace: "pre-wrap", lineHeight: 1.75 }}>{data.predictions}</div>
+        </GlowCard>
       )}
     </div>
   )
 }
 
+// ============ AUTO-REMEDIATION ============
 const AutoRemediation = () => {
+  const t = themes.remediate
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
-
   const run = async () => {
     setLoading(true)
     try { const res = await axios.post(`${API}/api/remediate`); setResult(res.data) }
-    catch { setResult({ error: "Failed" }) }
+    catch { setResult({ pods_scanned: 0, remediations: [] }) }
     setLoading(false)
   }
-
-  const risk = (r) => r === "LOW" ? "green" : r === "MEDIUM" ? "yellow" : "red"
-  const actionIcon = (a) => a === "RESTART" ? RefreshCw : a === "SCALE_DOWN_UP" ? Layers : Shield
+  const rColor = r => r === "LOW" ? c.green : r === "MEDIUM" ? c.amber : c.red
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <SectionHeader icon={Wrench} title="Auto-Remediation" subtitle="AI scans problematic pods and executes the safest fix automatically" />
-        <Button variant="danger" onClick={run} disabled={loading}>
-          {loading ? <><Spinner /> Running…</> : <><PlayCircle className="w-4 h-4" /> Run Auto-Fix</>}
-        </Button>
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <SectionTitle theme={t} icon="🔧" title="Auto-Remediation" subtitle="AI detects issues, decides the safest fix, executes it — and alerts Teams" />
+        <Btn onClick={run} disabled={loading} gradient="linear-gradient(135deg,#f43f5e,#ef4444)">{loading ? <><Spinner /> Running…</> : <>⚡ Run Auto-Fix</>}</Btn>
       </div>
       {!result && !loading && (
-        <Card className="p-12 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-500/20 to-red-500/10 border border-rose-500/20 flex items-center justify-center mx-auto mb-4">
-            <Wrench className="w-7 h-7 text-rose-400" />
-          </div>
-          <div className="text-sm font-medium text-white mb-1">Ready to remediate</div>
-          <p className="text-xs text-slate-500 max-w-sm mx-auto">AI will detect problematic pods, decide the safest action, and execute automatically</p>
-        </Card>
+        <GlowCard theme={t} style={{ padding: 70, textAlign: "center" }}>
+          <div className="float" style={{ fontSize: 52, marginBottom: 18 }}>🔧</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: c.text, marginBottom: 8 }}>Ready to auto-remediate</div>
+          <p style={{ fontSize: 13, color: c.textMuted, maxWidth: 420, margin: "0 auto" }}>AI detects CrashLoopBackOff & high restarts, decides RESTART/SCALE/SKIP by risk, and executes automatically</p>
+        </GlowCard>
       )}
       {result && (
         <>
-          <div className="grid grid-cols-3 gap-3">
-            <MetricTile label="Pods Scanned" value={result.pods_scanned || 0} sub="checked" icon={Boxes} />
-            <MetricTile label="Actions Taken" value={result.remediations?.filter(r => r.ai_decision !== "SKIP").length || 0} sub="executed" icon={Wrench} />
-            <MetricTile label="Successful" value={result.remediations?.filter(r => r.execution?.success).length || 0} sub="applied" icon={CheckCircle2} />
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 20 }}>
+            <Tile label="Pods Scanned" value={result.pods_scanned || 0} sub="checked" icon="🔍" color={c.blue} />
+            <Tile label="Actions Taken" value={result.remediations?.filter(r => r.ai_decision !== "SKIP").length || 0} sub="executed" icon="⚡" color={c.amber} />
+            <Tile label="Successful" value={result.remediations?.filter(r => r.execution?.success).length || 0} sub="fixed" icon="✅" color={c.green} />
           </div>
           {result.remediations?.length === 0 && (
-            <Card className="p-8 text-center">
-              <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-3" />
-              <div className="text-sm font-medium text-white">All pods healthy!</div>
-              <p className="text-xs text-slate-500 mt-1">No remediation needed</p>
-            </Card>
+            <GlowCard theme={t} style={{ padding: 50, textAlign: "center" }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: c.green }}>All pods healthy!</div>
+              <p style={{ fontSize: 13, color: c.textMuted, marginTop: 4 }}>No remediation needed</p>
+            </GlowCard>
           )}
-          <div className="space-y-3">
-            {result.remediations?.map((r, i) => {
-              const ActionIcon = actionIcon(r.ai_decision)
-              return (
-                <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}>
-                  <Card className="p-5">
-                    <div className="flex items-start justify-between gap-4 mb-3">
-                      <div className="flex items-start gap-3 flex-1 min-w-0">
-                        <div className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-                          <ActionIcon className="w-4 h-4 text-sky-400" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="text-sm font-medium text-white truncate">{r.pod}</div>
-                          <div className="text-[11px] text-slate-500 mt-0.5">{r.namespace} · {r.restarts} restarts</div>
-                        </div>
-                      </div>
-                      <Badge color={risk(r.risk_level)}>{r.risk_level}</Badge>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {result.remediations?.map((r, i) => (
+              <div key={i} className="slideIn" style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 18, padding: 22, animationDelay: `${i * 0.05}s`, position: "relative", overflow: "hidden" }}>
+                <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 4, background: rColor(r.risk_level) }} />
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+                  <div style={{ display: "flex", gap: 14, alignItems: "flex-start", flex: 1, minWidth: 0 }}>
+                    <div style={{ width: 44, height: 44, borderRadius: 13, background: `${rColor(r.risk_level)}15`, border: `1px solid ${rColor(r.risk_level)}30`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>
+                      {r.ai_decision === "RESTART" ? "🔄" : r.ai_decision === "SCALE_DOWN_UP" ? "⚖️" : "⏭️"}
                     </div>
-                    <div className="grid grid-cols-2 gap-3 mb-3">
-                      <div className="p-3 rounded-lg bg-white/[0.02] border border-white/5">
-                        <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Decision</div>
-                        <div className="text-xs text-white font-medium">{r.ai_decision}</div>
-                      </div>
-                      <div className="p-3 rounded-lg bg-white/[0.02] border border-white/5">
-                        <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Reasoning</div>
-                        <div className="text-xs text-slate-300 line-clamp-2">{r.ai_reason}</div>
-                      </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: c.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.pod}</div>
+                      <div style={{ fontSize: 12, color: c.textMuted, marginTop: 3 }}>{r.namespace} · {r.restarts} restarts</div>
                     </div>
-                    {r.execution && (
-                      <div className={`p-3 rounded-lg border ${r.execution.success ? "bg-emerald-500/[0.03] border-emerald-500/20" : "bg-rose-500/[0.03] border-rose-500/20"}`}>
-                        <div className="flex items-center gap-2 mb-1">
-                          {r.execution.success ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <XCircle className="w-3.5 h-3.5 text-rose-400" />}
-                          <span className={`text-xs font-medium ${r.execution.success ? "text-emerald-400" : "text-rose-400"}`}>
-                            {r.execution.success ? "Executed successfully" : "Execution failed"}
-                          </span>
-                        </div>
-                        {r.execution.command && <code className="text-[10px] text-slate-400 font-mono block mt-1">{r.execution.command}</code>}
-                      </div>
-                    )}
-                  </Card>
-                </motion.div>
-              )
-            })}
+                  </div>
+                  <Pill color={rColor(r.risk_level)}>{r.risk_level} RISK</Pill>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 12, marginBottom: 14 }}>
+                  <div style={{ padding: "12px 14px", borderRadius: 12, background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.15)" }}>
+                    <div style={{ fontSize: 9.5, color: c.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700, marginBottom: 5 }}>AI Decision</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: c.blue }}>{r.ai_decision}</div>
+                  </div>
+                  <div style={{ padding: "12px 14px", borderRadius: 12, background: "rgba(255,255,255,0.02)", border: `1px solid ${c.border}` }}>
+                    <div style={{ fontSize: 9.5, color: c.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700, marginBottom: 5 }}>Reasoning</div>
+                    <div style={{ fontSize: 12, color: c.textDim, lineHeight: 1.5 }}>{r.ai_reason}</div>
+                  </div>
+                </div>
+                {r.execution && (
+                  <div style={{ padding: "12px 16px", borderRadius: 12, background: r.execution.success ? "rgba(16,185,129,0.06)" : "rgba(244,63,94,0.06)", border: `1px solid ${r.execution.success ? "rgba(16,185,129,0.25)" : "rgba(244,63,94,0.25)"}` }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: r.execution.command ? 7 : 0 }}>
+                      <span style={{ fontSize: 15 }}>{r.execution.success ? "✅" : "❌"}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: r.execution.success ? c.green : c.red }}>{r.execution.success ? "Executed successfully" : "Execution failed"}</span>
+                    </div>
+                    {r.execution.command && <code style={{ fontSize: 11, color: c.textMuted, fontFamily: "'Fira Code',monospace", display: "block", background: "rgba(0,0,0,0.2)", padding: "6px 10px", borderRadius: 8 }}>{r.execution.command}</code>}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         </>
       )}
@@ -496,132 +619,18 @@ const AutoRemediation = () => {
   )
 }
 
-const NLPChat = () => {
-  const [messages, setMessages] = useState([{
-    role: "assistant",
-    content: "Hi! I'm your Kubernetes AI assistant. Ask me anything in plain English.\n\nTry:\n• Show me all pods in monitoring namespace\n• Deploy a redis cache with 2 replicas\n• Scale nginx-app to 3 replicas\n• What's the status of flask-backend?"
-  }])
-  const [input, setInput] = useState("")
-  const [loading, setLoading] = useState(false)
-  const bottomRef = useRef(null)
-
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }) }, [messages, loading])
-
-  const send = async () => {
-    if (!input.trim()) return
-    const userMsg = input.trim()
-    setInput("")
-    setMessages(p => [...p, { role: "user", content: userMsg }])
-    setLoading(true)
-    try {
-      const res = await axios.post(`${API}/api/nlp`, { command: userMsg })
-      const result = res.data.result, parsed = res.data.parsed
-      let response = ""
-      if (result.action === "STATUS") {
-        response = `Found ${result.pods?.length || 0} pods:\n\n`
-        result.pods?.slice(0, 10).forEach(p => { response += `• ${p.name} (${p.namespace}) — ${p.status} · ${p.restarts} restarts\n` })
-        if ((result.pods?.length || 0) > 10) response += `\n…and ${result.pods.length - 10} more`
-      } else if (result.action === "DEPLOY") {
-        response = result.valid
-          ? `✓ Manifest generated for ${parsed.app_name}\n\nWorkload: ${parsed.workload_type}\nImage: ${parsed.image}\nReplicas: ${parsed.replicas}\nMemory: ${parsed.memory_limit}\n\nManifest is valid and ready to deploy!`
-          : `✗ Could not generate valid manifest: ${result.validation_message}`
-      } else if (result.action === "SCALE") {
-        response = result.success ? `✓ Scaled ${parsed.app_name} to ${parsed.replicas} replicas\n\n${result.command}` : `✗ Scale failed: ${result.message}`
-      } else if (result.action === "DELETE") {
-        response = result.success ? `✓ Deleted ${parsed.app_name}\n\n${result.command}` : `✗ Delete failed: ${result.message}`
-      } else if (result.action === "TROUBLESHOOT") {
-        response = `Analysis for ${result.pod}:\n\n${result.message}`
-      } else {
-        response = result.message || "Command processed."
-      }
-      setMessages(p => [...p, { role: "assistant", content: response }])
-    } catch {
-      setMessages(p => [...p, { role: "assistant", content: "✗ Error processing command. Is the backend running?" }])
-    }
-    setLoading(false)
-  }
-
-  const suggestions = ["Show all pods in monitoring", "Deploy redis with 2 replicas", "Scale nginx-app to 3 replicas", "Status of flask-backend"]
-
-  return (
-    <div className="space-y-4 h-[calc(100vh-160px)] flex flex-col">
-      <SectionHeader icon={MessageSquare} title="Natural Language Cluster Control" subtitle="Speak to your Kubernetes cluster like a human" />
-      <Card className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          {messages.map((msg, i) => (
-            <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-              className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-              {msg.role === "assistant" && (
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center shrink-0">
-                  <Bot className="w-4 h-4 text-white" />
-                </div>
-              )}
-              <div className={`max-w-[75%] px-4 py-3 rounded-2xl ${
-                msg.role === "user"
-                  ? "bg-gradient-to-br from-sky-500 to-blue-600 text-white rounded-tr-sm"
-                  : "bg-white/[0.04] border border-white/[0.06] text-slate-200 rounded-tl-sm"
-              }`}>
-                <div className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</div>
-              </div>
-              {msg.role === "user" && (
-                <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
-                  <span className="text-xs text-white font-semibold">S</span>
-                </div>
-              )}
-            </motion.div>
-          ))}
-          {loading && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center">
-                <Bot className="w-4 h-4 text-white" />
-              </div>
-              <div className="px-4 py-3 rounded-2xl bg-white/[0.04] border border-white/[0.06] rounded-tl-sm">
-                <div className="flex gap-1">
-                  {[0, 0.15, 0.3].map(d => <div key={d} className="w-2 h-2 rounded-full bg-slate-500 animate-bounce" style={{ animationDelay: `${d}s` }} />)}
-                </div>
-              </div>
-            </motion.div>
-          )}
-          <div ref={bottomRef} />
-        </div>
-        <div className="border-t border-white/5 p-4">
-          <div className="flex gap-2 mb-3 flex-wrap">
-            {suggestions.map(s => (
-              <button key={s} onClick={() => setInput(s)}
-                className="px-3 py-1.5 rounded-full bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 hover:border-sky-500/30 text-[11px] text-slate-400 hover:text-sky-400 transition-all">
-                {s}
-              </button>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && !loading && send()}
-              placeholder="Ask anything about your cluster…"
-              className="flex-1 px-4 py-3 rounded-xl bg-slate-950/60 border border-white/10 text-sm text-white placeholder:text-slate-600 focus:border-sky-500/50 focus:outline-none focus:ring-2 focus:ring-sky-500/20 transition-all" />
-            <Button size="lg" onClick={send} disabled={loading || !input.trim()}>
-              <Send className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-      </Card>
-    </div>
-  )
-}
-
+// ============ MAIN APP ============
 export default function App() {
   const [pods, setPods] = useState([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState("chat")
-  const [namespaceFilter, setNamespaceFilter] = useState("all")
+  const [nsFilter, setNsFilter] = useState("all")
+  const [dark, setDark] = useState(true)
+  c = getC(dark)
 
   useEffect(() => {
-    const fetchPods = () => {
-      axios.get(`${API}/api/cluster/pods`)
-        .then(res => { setPods(res.data.pods); setLoading(false) })
-        .catch(() => setLoading(false))
-    }
-    fetchPods()
-    const interval = setInterval(fetchPods, 30000)
-    return () => clearInterval(interval)
+    const f = () => axios.get(`${API}/api/cluster/pods`).then(res => { setPods(res.data.pods); setLoading(false) }).catch(() => setLoading(false))
+    f(); const int = setInterval(f, 30000); return () => clearInterval(int)
   }, [])
 
   const running = pods.filter(p => p.status === "Running").length
@@ -629,59 +638,53 @@ export default function App() {
   const highRestarts = pods.filter(p => p.restarts > 10).length
   const crashed = pods.filter(p => p.status !== "Running").length
   const health = Math.max(0, Math.min(100, 100 - highRestarts * 5 - crashed * 10))
-
   const namespaces = [...new Set(pods.map(p => p.namespace))]
-  const filteredPods = namespaceFilter === "all" ? pods : pods.filter(p => p.namespace === namespaceFilter)
+  const filtered = nsFilter === "all" ? pods : pods.filter(p => p.namespace === nsFilter)
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white antialiased">
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-sky-500/10 blur-3xl" />
-        <div className="absolute top-1/2 -right-40 w-96 h-96 rounded-full bg-purple-500/10 blur-3xl" />
-        <div className="absolute bottom-0 left-1/2 w-96 h-96 rounded-full bg-blue-500/5 blur-3xl" />
+    <div style={{ minHeight: "100vh", background: c.bg, color: c.text, position: "relative" }}>
+      <ClusterBackground dark={dark} />
+      <div style={{ position: "fixed", inset: 0, pointerEvents: "none", overflow: "hidden", zIndex: 0 }}>
+        <div className="float" style={{ position: "absolute", top: -180, left: -120, width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle,rgba(99,102,241,0.15),transparent 70%)", filter: "blur(60px)" }} />
+        <div className="float" style={{ position: "absolute", top: "40%", right: -150, width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle,rgba(236,72,153,0.12),transparent 70%)", filter: "blur(60px)", animationDelay: "2s" }} />
+        <div className="float" style={{ position: "absolute", bottom: -180, left: "40%", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle,rgba(6,182,212,0.12),transparent 70%)", filter: "blur(60px)", animationDelay: "4s" }} />
       </div>
-      <Header health={health} running={running} total={pods.length} issues={issues} />
-      <div className="flex">
-        <Sidebar tab={tab} setTab={setTab} />
-        <main className="flex-1 relative">
-          <div className="max-w-[1400px] mx-auto p-8">
-            <AnimatePresence mode="wait">
-              <motion.div key={tab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
-                {tab === "chat" && <NLPChat />}
-                {tab === "pods" && (
-                  <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                      <SectionHeader icon={Boxes} title="Cluster Pods" subtitle={`${filteredPods.length} pods · Live from Kubernetes API`} />
-                      <div className="flex gap-2 flex-wrap">
-                        <button onClick={() => setNamespaceFilter("all")}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${namespaceFilter === "all" ? "bg-sky-500/20 text-sky-400 border border-sky-500/30" : "bg-white/[0.03] text-slate-400 border border-white/5 hover:text-white"}`}>
-                          All
-                        </button>
-                        {namespaces.map(ns => (
-                          <button key={ns} onClick={() => setNamespaceFilter(ns)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${namespaceFilter === ns ? "bg-sky-500/20 text-sky-400 border border-sky-500/30" : "bg-white/[0.03] text-slate-400 border border-white/5 hover:text-white"}`}>
-                            {ns}
-                          </button>
-                        ))}
-                      </div>
+
+      <div style={{ position: "relative", zIndex: 1 }}>
+        <Header health={health} running={running} total={pods.length} issues={issues} dark={dark} setDark={setDark} />
+        <div style={{ display: "flex" }}>
+          <Sidebar tab={tab} setTab={setTab} />
+          <main style={{ flex: 1 }}>
+            <div style={{ maxWidth: 1320, margin: "0 auto", padding: 32 }}>
+              {tab === "chat" && <NLPChat />}
+              {tab === "pods" && (
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <SectionTitle theme={themes.pods} icon="📦" title="Cluster Pods" subtitle={`${filtered.length} pods live · Auto-refreshes every 30s`} />
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {["all", ...namespaces].map(ns => (
+                        <button key={ns} onClick={() => setNsFilter(ns)} style={{
+                          padding: "8px 16px", borderRadius: 12, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s",
+                          background: nsFilter === ns ? themes.pods.grad : "rgba(255,255,255,0.03)",
+                          color: nsFilter === ns ? "#fff" : c.textMuted,
+                          border: `1px solid ${nsFilter === ns ? "transparent" : c.border}`,
+                          boxShadow: nsFilter === ns ? `0 4px 16px ${themes.pods.glow}` : "none"
+                        }}>{ns}</button>
+                      ))}
                     </div>
-                    {loading ? (
-                      <Card className="p-12 text-center"><Spinner /> <div className="text-sm text-slate-400 mt-3">Loading pods…</div></Card>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {filteredPods.map(pod => <PodCard key={pod.name} pod={pod} />)}
-                      </div>
-                    )}
                   </div>
-                )}
-                {tab === "generate" && <ManifestGenerator />}
-                {tab === "predict" && <Predictions />}
-                {tab === "remediate" && <AutoRemediation />}
-                {tab === "arch" && <Architecture />}
-              </motion.div>
-            </AnimatePresence>
-          </div>
-        </main>
+                  {loading
+                    ? <GlowCard theme={themes.pods} style={{ padding: 70, textAlign: "center" }}><Spinner color={themes.pods.solid} /><div style={{ fontSize: 13, color: c.textMuted, marginTop: 14 }}>Loading pods…</div></GlowCard>
+                    : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: 16 }}>{filtered.map((pod, i) => <PodCard key={pod.name} pod={pod} index={i} />)}</div>}
+                </div>
+              )}
+              {tab === "generate" && <ManifestGenerator />}
+              {tab === "predict" && <Predictions />}
+              {tab === "remediate" && <AutoRemediation />}
+              {tab === "arch" && <Architecture />}
+            </div>
+          </main>
+        </div>
       </div>
     </div>
   )
